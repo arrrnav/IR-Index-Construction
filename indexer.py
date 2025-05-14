@@ -5,6 +5,7 @@ URLS_PATH = './developer/DEV'
 
 class Indexer:
     def __init__(self):
+        print("GELLO")
         # example index key, value:
         # 'gilbert': {'doc1': [1, 2], 'doc2': [3, 4]}
         # - gilbert appears in doc1 at positions 1 and 2, and in doc2 at positions 3 and 4

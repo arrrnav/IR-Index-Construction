@@ -3,7 +3,7 @@ from collections import defaultdict
 from nltk.stem import PorterStemmer
 import re
 
-URLS_PATH = './developer/DEV/aiclub_ics_uci_edu'
+URLS_PATH = './developer/DEV/malek_ics_uci_edu'
 
 
 class Indexer:
@@ -65,6 +65,21 @@ class Indexer:
             self.inverted_index[stemmed_word][doc_id].append(position)
             # score Formula:
 
+    def get_word_importance_factor(self, word):
+        for tag in self.important_tags:
+            if word in self.words_in_tags[tag]:
+                # Calculate the importance factor based on the tag
+                if tag == "h1":
+                    return 4
+                elif tag == "h2":
+                    return 3
+                elif tag == "h3":
+                    return 2
+                elif tag == "strong" or tag == "b":
+                    return 1
+                elif tag == "title":
+                    return 5
+        return 1
 
     def term_frequency_score(self, word, doc_id):
         score = len(self.inverted_index[word][doc_id]) / len(self.words)
@@ -91,8 +106,8 @@ class Indexer:
                         for word in self.inverted_index:
                             if (self.url_to_id[content['url']] in self.inverted_index[word]):
                                 score = (self.term_frequency_score(word, self.url_to_id[content['url']]) * 
-                                        self.inverse_document_frequency_score(word))
-
+                                        self.inverse_document_frequency_score(word) + self.get_word_importance_factor(word))
+                                # Append the score to the list of positions
                                 self.inverted_index[word][self.url_to_id[content['url']]].append(score)
 
                         # Reset dict for every link/doc

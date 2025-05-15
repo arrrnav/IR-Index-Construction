@@ -76,6 +76,11 @@ class Indexer:
             if temp_occurences > total_occurences:
                 total_occurences = temp_occurences
                 most_common_word = word
+        
+        with open('stats.txt', 'w') as f:
+            print(f"Number of unique words: {num_unique_words}", file=f)
+            print(f"Number of unique documents: {num_unique_docs}", file=f)
+            print(f"Most common word: '{most_common_word}' with {total_occurences} occurrences in {num_unique_docs} documents", file=f)
         return num_unique_words, num_unique_docs, most_common_word, total_occurences
 
 if __name__ == "__main__":

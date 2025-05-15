@@ -1,13 +1,13 @@
 import os, json, bs4
 from collections import defaultdict
 from nltk.stem import PorterStemmer
+import re
 
-URLS_PATH = './developer/DEV/mailman_ics_uci_edu'
+URLS_PATH = './developer/DEV/aiclub_ics_uci_edu'
 
 
 class Indexer:
     def __init__(self):
-        print("GELLO")
         # example index key, value:
         # 'gilbert': {'doc1': [1, 2], 'doc2': [3, 4]}
         # - gilbert appears in doc1 at positions 1 and 2, and in doc2 at positions 3 and 4
@@ -15,7 +15,7 @@ class Indexer:
         self.url_to_id = defaultdict(int)
         self.id_to_url = defaultdict(str)
         self.next_available_id = 0
-        self.important_tags = ["h1", "h2", "h3", "h4", "h5", "h6", "strong", "b"]
+        self.important_tags = ["h1", "h2", "h3", "strong", "b", "title"]
         self.stemmer = PorterStemmer()
 
     def index(self, url, content):
@@ -35,6 +35,7 @@ class Indexer:
 
         soup = bs4.BeautifulSoup(content, 'html.parser')
         text = soup.get_text()
+        text = re.sub(r'[^a-zA-Z0-9\s]', '', text)
         # WORK NEEDS TO BE DONE HERE
         # TOKENIZE AND STEMIZE THE TEXT
         words = text.split()
@@ -43,7 +44,6 @@ class Indexer:
         print(f"url: {url}")
         for position, word in enumerate(words):
             word = word.lower()
-            word = word.strip(".!?,()[]{};:'\"")
             stemmed_word = self.stemmer.stem(word)
             self.inverted_index[stemmed_word][doc_id].append(position)
             # print(self.inverted_index[stemmed_word][doc_id])

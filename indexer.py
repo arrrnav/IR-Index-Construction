@@ -2,7 +2,8 @@ import os, json, bs4
 from collections import defaultdict
 from nltk.stem import PorterStemmer
 
-URLS_PATH = './developer/DEV/aiclub_ics_uci_edu'
+URLS_PATH = './developer/DEV/mailman_ics_uci_edu'
+
 
 class Indexer:
     def __init__(self):
@@ -38,12 +39,14 @@ class Indexer:
         # TOKENIZE AND STEMIZE THE TEXT
         words = text.split()
         # print(words)
-        print(f"doc_id: {doc_id}")
+        # print(f"doc_id: {doc_id}")
+        print(f"url: {url}")
         for position, word in enumerate(words):
             word = word.lower()
+            word = word.strip(".!?,()[]{};:'\"")
             stemmed_word = self.stemmer.stem(word)
             self.inverted_index[stemmed_word][doc_id].append(position)
-            print(self.inverted_index[stemmed_word][doc_id])
+            # print(self.inverted_index[stemmed_word][doc_id])
 
     def index_all(self):
         for root, _, files in os.walk(URLS_PATH):
@@ -58,6 +61,22 @@ class Indexer:
                 except Exception as e:
                     print(f"An error occurred while processing {filepath}: {e}")
 
+    def get_stats(self):
+        # Get the number of unique words in the inverted index
+        num_unique_words = len(self.inverted_index)
+        # Get the number of unique documents in the inverted index
+        num_unique_docs = len(self.url_to_id)
+
+        most_common_word = None
+        total_occurences = 0
+        for word in self.inverted_index:
+            # Get the most common word in the inverted index
+            temp_occurences = sum(len(positions) for positions in self.inverted_index[word].values())
+            print(temp_occurences)
+            if temp_occurences > total_occurences:
+                total_occurences = temp_occurences
+                most_common_word = word
+        return num_unique_words, num_unique_docs, most_common_word, total_occurences
 
 if __name__ == "__main__":
     indexer = Indexer()
@@ -72,3 +91,8 @@ if __name__ == "__main__":
     # Save the ID to URL mapping to a file
     with open('id_to_url.json', 'w') as f:
         json.dump(dict(indexer.id_to_url), f, indent=4, separators=(',', ': '), ensure_ascii=False)
+
+    indexer_stats = indexer.get_stats()
+    print(f"Number of unique words: {indexer_stats[0]}")
+    print(f"Number of unique documents: {indexer_stats[1]}")
+    print(f"Most common word: '{indexer_stats[2]}' with {indexer_stats[-1]} occurrences in {indexer_stats[1]} documents")

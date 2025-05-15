@@ -17,6 +17,7 @@ class Indexer:
         self.next_available_id = 0
         self.important_tags = ["h1", "h2", "h3", "strong", "b", "title"]
         self.stemmer = PorterStemmer()
+        self.words_in_tags = defaultdict(str)
 
     def index(self, url, content):
         doc_id = None
@@ -34,6 +35,21 @@ class Indexer:
             doc_id = self.url_to_id[url]
 
         soup = bs4.BeautifulSoup(content, 'html.parser')
+        
+        # Go through the important tags and extract text
+        for tag in self.important_tags:
+            # Append them in the dictionary so that
+            # Each Key corresponds to the tag and the value is the text
+            # inside the tag
+            for element in soup.find_all(tag):
+                text = element.get_text()
+                # Apply filters
+                text = re.sub(r'[^a-zA-Z0-9\s]', '', text)
+                text = text.lower()
+                self.words_in_tags[tag] += text + ' '
+
+        # print(f"url: {url}")
+        # print(self.words_in_tags)
         text = soup.get_text()
         text = re.sub(r'[^a-zA-Z0-9\s]', '', text)
         # WORK NEEDS TO BE DONE HERE
@@ -41,12 +57,33 @@ class Indexer:
         words = text.split()
         # print(words)
         # print(f"doc_id: {doc_id}")
-        print(f"url: {url}")
+        
         for position, word in enumerate(words):
             word = word.lower()
             stemmed_word = self.stemmer.stem(word)
             self.inverted_index[stemmed_word][doc_id].append(position)
-            # print(self.inverted_index[stemmed_word][doc_id])
+            # score Formula:
+
+
+    def get_word_importance_score(self, word):
+        score = 1.0
+        # Check if the word is in any of the important tags
+        for tag in self.important_tags:
+
+            if word in self.words_in_tags[tag]:
+                # Calculate the score based on the tag
+                if tag == "h1":
+                    score = 5
+                elif tag == "h2":
+                    # print("h2", word)
+                    score = 4
+                elif tag == "h3":
+                    score = 3
+                elif tag == "strong" or tag == "b":
+                    score = 2.5
+                elif tag == "title":
+                    score = 2
+        return score
 
     def index_all(self):
         for root, _, files in os.walk(URLS_PATH):
@@ -58,8 +95,26 @@ class Indexer:
                     with open(filepath, 'r') as json_file:
                         content = json.load(json_file)
                         self.index(content['url'], content['content'])
+
+                        # Calculate the score for each word in the inverted index
+                        # and append it to the list of positions
+                        for word in self.inverted_index:
+                            if (self.url_to_id[content['url']] in self.inverted_index[word]):
+                                occurences = len(self.inverted_index[word][self.url_to_id[content['url']]])
+
+                                # Calcualte the score
+                                score = occurences * self.get_word_importance_score(word)
+
+                                self.inverted_index[word][self.url_to_id[content['url']]].append(score)
+
+                        # Reset dict for every link/doc
+                        self.words_in_tags = defaultdict(str)
+                
+            
                 except Exception as e:
                     print(f"An error occurred while processing {filepath}: {e}")
+            
+                    
 
     def get_stats(self):
         # Get the number of unique words in the inverted index
@@ -71,8 +126,8 @@ class Indexer:
         total_occurences = 0
         for word in self.inverted_index:
             # Get the most common word in the inverted index
-            temp_occurences = sum(len(positions) for positions in self.inverted_index[word].values())
-            print(temp_occurences)
+            temp_occurences = sum((len(positions)-1) for positions in self.inverted_index[word].values())
+            # print(temp_occurences)
             if temp_occurences > total_occurences:
                 total_occurences = temp_occurences
                 most_common_word = word

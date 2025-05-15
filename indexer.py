@@ -3,7 +3,7 @@ from collections import defaultdict
 from nltk.stem import PorterStemmer
 import re
 
-URLS_PATH = './developer/DEV/malek_ics_uci_edu'
+URLS_PATH = './developer/DEV'
 
 
 class Indexer:
@@ -49,7 +49,7 @@ class Indexer:
                 text = text.lower()
                 self.words_in_tags[tag] += text + ' '
 
-        # print(f"url: {url}")
+        print(f"url: {url}")
         # print(self.words_in_tags)
         text = soup.get_text()
         text = re.sub(r'[^a-zA-Z0-9\s]', '', text)

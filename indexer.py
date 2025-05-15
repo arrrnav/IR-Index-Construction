@@ -18,6 +18,7 @@ class Indexer:
         self.important_tags = ["h1", "h2", "h3", "strong", "b", "title"]
         self.stemmer = PorterStemmer()
         self.words_in_tags = defaultdict(str)
+        self.words = []
 
     def index(self, url, content):
         doc_id = None
@@ -54,35 +55,24 @@ class Indexer:
         text = re.sub(r'[^a-zA-Z0-9\s]', '', text)
         # WORK NEEDS TO BE DONE HERE
         # TOKENIZE AND STEMIZE THE TEXT
-        words = text.split()
+        self.words = text.split()
         # print(words)
         # print(f"doc_id: {doc_id}")
         
-        for position, word in enumerate(words):
+        for position, word in enumerate(self.words):
             word = word.lower()
             stemmed_word = self.stemmer.stem(word)
             self.inverted_index[stemmed_word][doc_id].append(position)
             # score Formula:
 
 
-    def get_word_importance_score(self, word):
-        score = 1.0
-        # Check if the word is in any of the important tags
-        for tag in self.important_tags:
-
-            if word in self.words_in_tags[tag]:
-                # Calculate the score based on the tag
-                if tag == "h1":
-                    score = 5
-                elif tag == "h2":
-                    # print("h2", word)
-                    score = 4
-                elif tag == "h3":
-                    score = 3
-                elif tag == "strong" or tag == "b":
-                    score = 2.5
-                elif tag == "title":
-                    score = 2
+    def term_frequency_score(self, word, doc_id):
+        score = len(self.inverted_index[word][doc_id]) / len(self.words)
+        
+        return score
+    
+    def inverse_document_frequency_score(self, word):
+        score = len(self.url_to_id) / len(self.inverted_index[word])
         return score
 
     def index_all(self):
@@ -100,10 +90,8 @@ class Indexer:
                         # and append it to the list of positions
                         for word in self.inverted_index:
                             if (self.url_to_id[content['url']] in self.inverted_index[word]):
-                                occurences = len(self.inverted_index[word][self.url_to_id[content['url']]])
-
-                                # Calcualte the score
-                                score = occurences * self.get_word_importance_score(word)
+                                score = (self.term_frequency_score(word, self.url_to_id[content['url']]) * 
+                                        self.inverse_document_frequency_score(word))
 
                                 self.inverted_index[word][self.url_to_id[content['url']]].append(score)
 

@@ -2,6 +2,7 @@ import os, json, bs4
 from collections import defaultdict
 from nltk.stem import PorterStemmer
 import re
+from urllib.parse import urlparse
 
 URLS_PATH = './developer/DEV'
 
@@ -22,18 +23,20 @@ class Indexer:
 
     def index(self, url, content):
         doc_id = None
-        if url not in self.url_to_id:
+        parsed_url = urlparse(url)
+        url_without_fragment = parsed_url.scheme + "://" + parsed_url.netloc + parsed_url.path
+        if url_without_fragment not in self.url_to_id:
             # Assign a new ID to the URL if it doesn't exist
             doc_id = self.next_available_id
 
             # Maps the URL to a unique ID
-            self.url_to_id[url] = doc_id
+            self.url_to_id[url_without_fragment] = doc_id
 
             # Maps the unique ID to the URL
-            self.id_to_url[doc_id] = url
+            self.id_to_url[doc_id] = url_without_fragment
             self.next_available_id += 1
         else:
-            doc_id = self.url_to_id[url]
+            doc_id = self.url_to_id[url_without_fragment]
 
         soup = bs4.BeautifulSoup(content, 'html.parser')
         

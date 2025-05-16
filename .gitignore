@@ -3,7 +3,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Ignore specific to our project
 developer/
+*.json
 
 # C extensions
 *.so

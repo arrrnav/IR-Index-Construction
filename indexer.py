@@ -4,6 +4,7 @@ from nltk.stem import PorterStemmer
 import re
 from urllib.parse import urlparse
 
+URLS_PATH = './analyst/ANALYST'
 URLS_PATH = './developer/DEV'
 
 
@@ -20,23 +21,28 @@ class Indexer:
         self.stemmer = PorterStemmer()
         self.words_in_tags = defaultdict(str)
         self.words = []
+        self.docs = 0
+
+    def defrag_url(self, url):
+        # Parse the URL and remove the fragment
+        parsed_url = urlparse(url)
+        url_without_fragment = parsed_url.scheme + "://" + parsed_url.netloc + parsed_url.path
+        return url_without_fragment
 
     def index(self, url, content):
         doc_id = None
-        parsed_url = urlparse(url)
-        url_without_fragment = parsed_url.scheme + "://" + parsed_url.netloc + parsed_url.path
-        if url_without_fragment not in self.url_to_id:
-            # Assign a new ID to the URL if it doesn't exist
+        if url not in self.url_to_id:
+            # Assign a new ID to the URL if it doesn't exist 
             doc_id = self.next_available_id
 
             # Maps the URL to a unique ID
-            self.url_to_id[url_without_fragment] = doc_id
+            self.url_to_id[url] = doc_id
 
             # Maps the unique ID to the URL
-            self.id_to_url[doc_id] = url_without_fragment
+            self.id_to_url[doc_id] = url
             self.next_available_id += 1
         else:
-            doc_id = self.url_to_id[url_without_fragment]
+            doc_id = self.url_to_id[url]
 
         soup = bs4.BeautifulSoup(content, 'html.parser')
         
@@ -47,7 +53,7 @@ class Indexer:
             # inside the tag
             for element in soup.find_all(tag):
                 text = element.get_text()
-                # Apply filters
+                # Tokenize text
                 text = re.sub(r'[^a-zA-Z0-9\s]', '', text)
                 text = text.lower()
                 self.words_in_tags[tag] += text + ' '
@@ -68,21 +74,21 @@ class Indexer:
             self.inverted_index[stemmed_word][doc_id].append(position)
             # score Formula:
 
-    def get_word_importance_factor(self, word):
-        for tag in self.important_tags:
-            if word in self.words_in_tags[tag]:
-                # Calculate the importance factor based on the tag
-                if tag == "h1":
-                    return 4
-                elif tag == "h2":
-                    return 3
-                elif tag == "h3":
-                    return 2
-                elif tag == "strong" or tag == "b":
-                    return 1
-                elif tag == "title":
-                    return 5
-        return 1
+    # def get_word_importance_factor(self, word):
+    #     for tag in self.important_tags:
+    #         if word in self.words_in_tags[tag]:
+    #             # Calculate the importance factor based on the tag
+    #             if tag == "h1":
+    #                 return 4
+    #             elif tag == "h2":
+    #                 return 3
+    #             elif tag == "h3":
+    #                 return 2
+    #             elif tag == "strong" or tag == "b":
+    #                 return 1
+    #             elif tag == "title":
+    #                 return 5
+    #     return 1
 
     def term_frequency_score(self, word, doc_id):
         score = len(self.inverted_index[word][doc_id]) / len(self.words)
@@ -102,30 +108,30 @@ class Indexer:
                 try:
                     with open(filepath, 'r') as json_file:
                         content = json.load(json_file)
-                        self.index(content['url'], content['content'])
+                        url_without_fragment = self.defrag_url(content['url'])
+                        self.index(url_without_fragment, content['content'])
 
-                        # Calculate the score for each word in the inverted index
-                        # and append it to the list of positions
-                        for word in self.inverted_index:
-                            if (self.url_to_id[content['url']] in self.inverted_index[word]):
-                                score = (self.term_frequency_score(word, self.url_to_id[content['url']]) * 
-                                        self.inverse_document_frequency_score(word) + self.get_word_importance_factor(word))
-                                # Append the score to the list of positions
-                                self.inverted_index[word][self.url_to_id[content['url']]].append(score)
+                        # # Calculate the score for each word in the inverted index
+                        # # and append it to the list of positions
+                        # for word in self.inverted_index:
+                        #     # if the word appears in the document with the given ID
+                        #     if (self.url_to_id[url_without_fragment] in self.inverted_index[word]):
+                        #         score = (self.term_frequency_score(word, self.url_to_id[url_without_fragment]) * 
+                        #                 self.inverse_document_frequency_score(word) + self.get_word_importance_factor(word))
+                        #         # Append the score to the list of positions
+                        #         self.inverted_index[word][self.url_to_id[url_without_fragment]].append(score)
 
-                        # Reset dict for every link/doc
-                        self.words_in_tags = defaultdict(str)
+                        # # Reset dict for every link/doc
+                        # self.words_in_tags = defaultdict(str)
                 
             
                 except Exception as e:
                     print(f"An error occurred while processing {filepath}: {e}")
-            
                     
 
     def get_stats(self):
-        # Get the number of unique words in the inverted index
+        # gather stats
         num_unique_words = len(self.inverted_index)
-        # Get the number of unique documents in the inverted index
         num_unique_docs = len(self.url_to_id)
 
         most_common_word = None
@@ -162,3 +168,4 @@ if __name__ == "__main__":
     print(f"Number of unique words: {indexer_stats[0]}")
     print(f"Number of unique documents: {indexer_stats[1]}")
     print(f"Most common word: '{indexer_stats[2]}' with {indexer_stats[-1]} occurrences in {indexer_stats[1]} documents")
+

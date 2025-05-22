@@ -4,9 +4,9 @@ from nltk.stem import PorterStemmer
 import re
 from urllib.parse import urlparse
 
-URLS_PATH = './analyst/ANALYST'
-URLS_PATH = './developer/DEV'
-
+URLS_PATH_A = './analyst/ANALYST'
+URLS_PATH_D = './developer/DEV'
+QUERIES = ["cristina lopes" ,"machine learning", "ACM", "master of software engineering"]
 
 class Indexer:
     def __init__(self):
@@ -22,6 +22,27 @@ class Indexer:
         self.words_in_tags = defaultdict(str)
         self.words = []
         self.docs = 0
+
+    def search(self, query):
+        # list of the words in the query list tokenized
+        query_tokens = [self.stemmer.stem(word.lower()) for word in query.split()]
+
+        if not query_tokens:
+            return [] # return empty list
+        
+        # fetch doc ids for each word
+        doc_ids = []
+        for t in query_tokens:
+            if t in self.inverted_index:
+                doc_ids.append(set(self.inverted_index[word].keys()))
+            else:
+                return []
+        
+        # boolean and intersection of all doc sets
+        res_docs = set.intersection(*doc_ids)
+
+        # list of matching urls
+        return [self.id_to_url[id] for id in res_docs]
 
     def defrag_url(self, url):
         # Parse the URL and remove the fragment
@@ -100,7 +121,7 @@ class Indexer:
         return score
 
     def index_all(self):
-        for root, _, files in os.walk(URLS_PATH):
+        for root, _, files in os.walk(URLS_PATH_D):
             for filename in files:
                 if not filename.endswith('.json'):
                     continue
@@ -111,18 +132,18 @@ class Indexer:
                         url_without_fragment = self.defrag_url(content['url'])
                         self.index(url_without_fragment, content['content'])
 
-                        # # Calculate the score for each word in the inverted index
-                        # # and append it to the list of positions
-                        # for word in self.inverted_index:
-                        #     # if the word appears in the document with the given ID
-                        #     if (self.url_to_id[url_without_fragment] in self.inverted_index[word]):
-                        #         score = (self.term_frequency_score(word, self.url_to_id[url_without_fragment]) * 
-                        #                 self.inverse_document_frequency_score(word) + self.get_word_importance_factor(word))
-                        #         # Append the score to the list of positions
-                        #         self.inverted_index[word][self.url_to_id[url_without_fragment]].append(score)
+                        # Calculate the score for each word in the inverted index
+                        # and append it to the list of positions
+                        for word in self.inverted_index:
+                            # if the word appears in the document with the given ID
+                            if (self.url_to_id[url_without_fragment] in self.inverted_index[word]):
+                                score = (self.term_frequency_score(word, self.url_to_id[url_without_fragment]) * 
+                                        self.inverse_document_frequency_score(word) + self.get_word_importance_factor(word))
+                                # Append the score to the list of positions
+                                self.inverted_index[word][self.url_to_id[url_without_fragment]].append(score)
 
-                        # # Reset dict for every link/doc
-                        # self.words_in_tags = defaultdict(str)
+                        # Reset dict for every link/doc
+                        self.words_in_tags = defaultdict(str)
                 
             
                 except Exception as e:
@@ -152,6 +173,7 @@ class Indexer:
 
 if __name__ == "__main__":
     indexer = Indexer()
+
     indexer.index_all()
     
     # Save the inverted index to a file
@@ -169,3 +191,9 @@ if __name__ == "__main__":
     print(f"Number of unique documents: {indexer_stats[1]}")
     print(f"Most common word: '{indexer_stats[2]}' with {indexer_stats[-1]} occurrences in {indexer_stats[1]} documents")
 
+    # MILESTONE 2 - RUNNING QUERIES:
+    for query in QUERIES:
+        print(f"\nCurrent query - {query}")
+        res = indexer.search(query)
+        for i, url in enumerate(res[:5], 1):
+            print(f"#{i} url = {url}")

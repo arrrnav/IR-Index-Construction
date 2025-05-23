@@ -4,8 +4,30 @@ from nltk.stem import PorterStemmer
 import re
 from urllib.parse import urlparse
 
-URLS_PATH = './analyst/ANALYST'
-# URLS_PATH = './developer/DEV'
+# URLS_PATH = './analyst/ANALYST'
+URLS_PATH = './DEV/'
+
+QUERIES = ["cristina lopes" ,"machine learning", "ACM", "master of software engineering"]
+
+EXAMPLE_INDEX ='''
+
+{
+    "token": {
+        "doc2": [
+            pos,
+            pos,
+            pos,
+            score,
+        ],
+        "doc1": [
+            pos,
+            pos,
+            pos,
+            score,
+        ],
+    },
+}
+'''
 
 
 class Indexer:
@@ -73,22 +95,45 @@ class Indexer:
             stemmed_word = self.stemmer.stem(word)
             self.inverted_index[stemmed_word][doc_id].append(position)
             # score Formula:
+    
 
-    # def get_word_importance_factor(self, word):
-    #     for tag in self.important_tags:
-    #         if word in self.words_in_tags[tag]:
-    #             # Calculate the importance factor based on the tag
-    #             if tag == "h1":
-    #                 return 4
-    #             elif tag == "h2":
-    #                 return 3
-    #             elif tag == "h3":
-    #                 return 2
-    #             elif tag == "strong" or tag == "b":
-    #                 return 1
-    #             elif tag == "title":
-    #                 return 5
-    #     return 1
+    def search(self, query):
+        # list of the words in the query list tokenized
+        query_tokens = [self.stemmer.stem(word.lower()) for word in query.split()]
+
+        if not query_tokens:
+            return [] # return empty list
+        
+        # fetch doc ids for each word
+        doc_ids = []
+        for t in query_tokens:
+            if t in self.inverted_index:
+                doc_ids.append(set(self.inverted_index[t].keys()))
+            else:
+                return []
+        
+        # boolean and intersection of all doc sets
+        res_docs = set.intersection(*doc_ids)
+
+        # list of matching urls
+        return [self.id_to_url[id] for id in res_docs]
+
+
+    def get_word_importance_factor(self, word):
+        for tag in self.important_tags:
+            if word in self.words_in_tags[tag]:
+                # Calculate the importance factor based on the tag
+                if tag == "h1":
+                    return 4
+                elif tag == "h2":
+                    return 3
+                elif tag == "h3":
+                    return 2
+                elif tag == "strong" or tag == "b":
+                    return 1
+                elif tag == "title":
+                    return 5
+        return 1
 
     def term_frequency_score(self, word, doc_id):
         score = len(self.inverted_index[word][doc_id]) / len(self.words)
@@ -113,16 +158,16 @@ class Indexer:
 
                         # # Calculate the score for each word in the inverted index
                         # # and append it to the list of positions
-                        # for word in self.inverted_index:
-                        #     # if the word appears in the document with the given ID
-                        #     if (self.url_to_id[url_without_fragment] in self.inverted_index[word]):
-                        #         score = (self.term_frequency_score(word, self.url_to_id[url_without_fragment]) * 
-                        #                 self.inverse_document_frequency_score(word) + self.get_word_importance_factor(word))
-                        #         # Append the score to the list of positions
-                        #         self.inverted_index[word][self.url_to_id[url_without_fragment]].append(score)
+                        for word in self.inverted_index:
+                            # if the word appears in the document with the given ID
+                            if (self.url_to_id[url_without_fragment] in self.inverted_index[word]):
+                                score = (self.term_frequency_score(word, self.url_to_id[url_without_fragment]) * 
+                                        self.inverse_document_frequency_score(word) + self.get_word_importance_factor(word))
+                                # Append the score to the list of positions
+                                self.inverted_index[word][self.url_to_id[url_without_fragment]].append(score)
 
-                        # # Reset dict for every link/doc
-                        # self.words_in_tags = defaultdict(str)
+                        # Reset dict for every link/doc
+                        self.words_in_tags = defaultdict(str)
                 
             
                 except Exception as e:
@@ -150,6 +195,10 @@ class Indexer:
             print(f"Most common word: '{most_common_word}' with {total_occurences} occurrences in {num_unique_docs} documents", file=f)
         return num_unique_words, num_unique_docs, most_common_word, total_occurences
 
+    def merge_files(n):
+        # partial_index_1
+
+
 if __name__ == "__main__":
     indexer = Indexer()
     indexer.index_all()
@@ -169,3 +218,10 @@ if __name__ == "__main__":
     print(f"Number of unique documents: {indexer_stats[1]}")
     print(f"Most common word: '{indexer_stats[2]}' with {indexer_stats[-1]} occurrences in {indexer_stats[1]} documents")
 
+
+     # MILESTONE 2 - RUNNING QUERIES:
+    for query in QUERIES:
+        print(f"\nCurrent query - {query}")
+        res = indexer.search(query)
+        for i, url in enumerate(res[:5], 1):
+            print(f"#{i} url = {url}")

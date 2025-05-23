@@ -5,7 +5,7 @@ import re
 from urllib.parse import urlparse
 
 URLS_PATH = './analyst/ANALYST'
-URLS_PATH = './developer/DEV'
+# URLS_PATH = './developer/DEV'
 
 
 class Indexer:

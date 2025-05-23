@@ -197,6 +197,7 @@ class Indexer:
 
     def merge_files(n):
         # partial_index_1
+        pass
 
 
 if __name__ == "__main__":

@@ -2,6 +2,7 @@ import os, json, bs4
 from collections import defaultdict
 from nltk.stem import PorterStemmer
 import re
+import ijson
 from urllib.parse import urlparse
 
 # URLS_PATH = './analyst/ANALYST'
@@ -195,34 +196,161 @@ class Indexer:
             print(f"Most common word: '{most_common_word}' with {total_occurences} occurrences in {num_unique_docs} documents", file=f)
         return num_unique_words, num_unique_docs, most_common_word, total_occurences
 
-    def merge_files(n):
+
+    def alphaFirst(self,keys):
+        # Sort the keys in alphabetical order
+        temp = list(keys)
+        # print(f"temp: {temp}")
+        temp.sort()
+        return temp[0]
+    
+
+
+    def write_to_combined_index(self, filename, key, value):
+        # Read existing data
+        try:
+            with open(filename, 'r') as f:
+                data = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            data = {}
+        
+        # Update the data
+        if key in data:
+            # Merge the new value with existing values
+            data[key] = {**data[key], **value}
+        else:
+            data[key] = value
+        
+        # Write back to file
+        with open(filename, 'w') as f:
+            json.dump(data, f, indent=2)
+
+    def merge_files(self,n):
         # partial_index_1
-        pass
+        root_path = "./partial_indexes"
+        # stores the file iterators
+        parsed_files = []
+        # Stores keys
+        '''
+         {
+            "token": [index, {doc1: [pos, pos, pos, score], doc2: [pos, pos, pos, score]}]
+         }
+        '''
+        keys = {}
+
+        # populate the data strcctures
+        for i in range(1, n+1):
+            json_file = open(f"{root_path}/partial_index_{i}.json", 'r')
+            parsed_files.append(ijson.kvitems(json_file, ""))
+
+            # Handle duplicates, Append the values if it already exists
+            while True:
+                temp_key, val = next(parsed_files[i-1])
+                if temp_key not in keys:
+                    keys[temp_key] = [i-1, val]
+                    break
+                else:
+                    # print(keys[temp_key])
+                    keys[temp_key][1] = keys[temp_key][1] | val
+
+        # print(keys.keys())
+        order = []
+        while True:
+
+            # Select the key that comes alphabetically first 
+            selected_key = self.alphaFirst(keys.keys())
+
+            # print(f"Selected key: {selected_key}")
+            order.append(selected_key)
+            
+            # print("Writing to file")  
+            
+
+            self.write_to_combined_index('combined_index.json', selected_key, keys[selected_key][1])
+
+            
+            #  
+            # Write to the file
+
+
+            selected_key_index = keys[selected_key][0]
+            try:
+                while True:
+                    temp_key, temp_val = next(parsed_files[selected_key_index])
+                    if temp_key in keys:
+                        # Merge the new value with existing values
+                        keys[temp_key][1] = keys[temp_key][1] | temp_val
+                    else:
+                        # Keep the file index but use new value
+                        keys[temp_key] = [selected_key_index, temp_val]
+                        keys.pop(selected_key)
+                        break
+            except StopIteration:
+                keys.pop(selected_key)
+                # print(keys)
+                if len(keys) == 1:
+                    break
+        print(keys.keys())
+        
+        index = keys[list(keys.keys())[0]][0]
+        order.append(list(keys.keys())[0])
+        self.write_to_combined_index('combined_index.json', list(keys.keys())[0], keys[list(keys.keys())[0]][1])
+
+        print(list(keys.keys())[0]) 
+        while True:
+            try:
+                
+                key, val = next(parsed_files[index])
+                order.append(key)
+                # Handle dup file case
+                
+                self.write_to_combined_index('combined_index.json', key, val)
+
+
+                # else
+                # Write to the file
+                # print
+                
+            except StopIteration:
+                break
+        print(order)
+        # while True:
+        #     try:
+        #         key1 = next(parsed_files[0])[0]
+        #         key2 = next(parsed_files[1])[0]
+        #         print(f"Next key1: {key1}")
+        #         print(f"Next key2: {key2}")
+        #     except StopIteration:    
+        #         break
+        
+
+                
 
 
 if __name__ == "__main__":
     indexer = Indexer()
-    indexer.index_all()
+    indexer.merge_files(3)
+    # indexer.index_all()
     
-    # Save the inverted index to a file
-    with open('inverted_index.json', 'w') as f:
-        json.dump(dict(indexer.inverted_index), f, indent=4, separators=(',', ': '), ensure_ascii=False)
-    # Save the URL to ID mapping to a file
-    with open('url_to_id.json', 'w') as f:
-        json.dump(dict(indexer.url_to_id), f, indent=4, separators=(',', ': '), ensure_ascii=False)
-    # Save the ID to URL mapping to a file
-    with open('id_to_url.json', 'w') as f:
-        json.dump(dict(indexer.id_to_url), f, indent=4, separators=(',', ': '), ensure_ascii=False)
+    # # Save the inverted index to a file
+    # with open('inverted_index.json', 'w') as f:
+    #     json.dump(dict(indexer.inverted_index), f, indent=4, separators=(',', ': '), ensure_ascii=False)
+    # # Save the URL to ID mapping to a file
+    # with open('url_to_id.json', 'w') as f:
+    #     json.dump(dict(indexer.url_to_id), f, indent=4, separators=(',', ': '), ensure_ascii=False)
+    # # Save the ID to URL mapping to a file
+    # with open('id_to_url.json', 'w') as f:
+    #     json.dump(dict(indexer.id_to_url), f, indent=4, separators=(',', ': '), ensure_ascii=False)
 
-    indexer_stats = indexer.get_stats()
-    print(f"Number of unique words: {indexer_stats[0]}")
-    print(f"Number of unique documents: {indexer_stats[1]}")
-    print(f"Most common word: '{indexer_stats[2]}' with {indexer_stats[-1]} occurrences in {indexer_stats[1]} documents")
+    # indexer_stats = indexer.get_stats()
+    # print(f"Number of unique words: {indexer_stats[0]}")
+    # print(f"Number of unique documents: {indexer_stats[1]}")
+    # print(f"Most common word: '{indexer_stats[2]}' with {indexer_stats[-1]} occurrences in {indexer_stats[1]} documents")
 
 
-     # MILESTONE 2 - RUNNING QUERIES:
-    for query in QUERIES:
-        print(f"\nCurrent query - {query}")
-        res = indexer.search(query)
-        for i, url in enumerate(res[:5], 1):
-            print(f"#{i} url = {url}")
+    #  # MILESTONE 2 - RUNNING QUERIES:
+    # for query in QUERIES:
+    #     print(f"\nCurrent query - {query}")
+    #     res = indexer.search(query)
+    #     for i, url in enumerate(res[:5], 1):
+    #         print(f"#{i} url = {url}")

@@ -239,7 +239,7 @@ class Indexer:
 
         # populate the data strcctures
         for i in range(1, n+1):
-            json_file = open(f"{root_path}/partial_index_{i}.json", 'r')
+            json_file = open(f"{root_path}/index_{i}.json", 'r')
             parsed_files.append(ijson.kvitems(json_file, ""))
 
             # Handle duplicates, Append the values if it already exists

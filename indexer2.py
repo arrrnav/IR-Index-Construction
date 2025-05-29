@@ -6,6 +6,8 @@ from urllib.parse import urlparse, urlunparse
 from bs4 import BeautifulSoup, NavigableString, Tag
 from math import log
 
+PARTIAL_INDEX_URLS = 10000
+PARTIAL_INDEX_ROOT = "./partial_indexes"
 
 EXAMPLE_INDEX ='''
 {
@@ -53,6 +55,7 @@ class Indexer:
             # default: 1
         }
         self.stemmer = PorterStemmer()
+        self.index_num = 0
         # self.position = 0
     
     def get_importance_factor(self, token, doc_id):
@@ -71,8 +74,13 @@ class Indexer:
 
         return tf_idf_score * tag_importance
 
-
-
+    def new_partial_index(self):
+        # Create a new partial index file
+        with open(f'{PARTIAL_INDEX_ROOT}/index_{self.index_num}.json', 'w') as f:
+            json.dump(dict(self.inverted_index), f, indent=4, separators=(',', ': '), ensure_ascii=False)
+        self.index_num += 1
+        self.inverted_index = defaultdict(lambda: defaultdict(lambda: {"c": 0, "s": 0}))
+        print(f"New partial index: index_{self.index_num}.json")
 
     def defrag_url(self, url):
         # Parse the URL and remove the fragment
@@ -99,6 +107,9 @@ class Indexer:
         # Assign a new ID to the URL if it doesn't exist 
         doc_id = self.next_available_id
         self.next_available_id += 1
+
+        if self.next_available_id % PARTIAL_INDEX_URLS == 0:
+            self.new_partial_index()
 
         # Update the URL to ID mapping
         self.url_to_id[url] = doc_id

@@ -37,7 +37,7 @@ EXAMPLE_INDEX ='''
 }
 '''
 
-URLS_PATH = './developer/DEV'
+URLS_PATH = './ANALYST'
 
 class Indexer:
     def __init__(self):
@@ -467,39 +467,40 @@ class IndexSearcher:
 
 
 if __name__ == "__main__":
-    # indexer = Indexer()
-    # indexer.index_all()
-    # indexer.generate_report()
-
-
-    # print(indexer.inverted_index)
-    # print(indexer.url_to_id)
-    # print(indexer.id_to_url)
-
-    # ex_queries = [
-    #     "Cristina Lopes",
-    #     "machine learning",
-    #     "ACM",
-    #     "master of software engineering",
-    # ]
-
-    import time
-    IS = IndexSearcher()
-    # for query in ex_queries:
-        # print(f"Query: {query}")
-    while True:
-        query = input("Enter a search query (or 'exit' to quit): ")
-        if query.lower() == 'exit':
-            break
-        index_f = open('inverted_index.json', 'r')
-        start_time = time.time()
-        results = IS.search(query, index_f)
-        end_time = time.time()
-        index_f.close()
-        # print(f"Results (retrieved in {end_time - start_time} seconds):")
-        print("Results:")
-        for rank, result in enumerate(results):
-            print(f'#{rank}: {result}')
-        print()
-    # print()
+    print("=== Running Indexer2 with ANALYST data ===")
+    
+    # Step 1: Create the indexer and index all documents
+    indexer = Indexer()
+    print("Step 1: Indexing all documents...")
+    indexer.index_all()
+    
+    # Step 2: Generate final partial index for remaining documents
+    if indexer.inverted_index:
+        indexer.new_partial_index()
+    
+    # Step 3: Generate report and save files
+    print("Step 2: Generating report and saving files...")
+    indexer.generate_report()
+    
+    print("✓ Indexing complete!")
+    print(f"✓ Created {indexer.index_num} partial index files")
+    print("✓ Files created: inverted_index.json, url_to_id.json, id_to_url.json, stats.txt")
+    
+    # Uncomment below to run the searcher after indexing
+    # print("\n=== Starting Interactive Search ===")
+    # import time
+    # IS = IndexSearcher()
+    # while True:
+    #     query = input("Enter a search query (or 'exit' to quit): ")
+    #     if query.lower() == 'exit':
+    #         break
+    #     index_f = open('inverted_index.json', 'r')
+    #     start_time = time.time()
+    #     results = IS.search(query, index_f)
+    #     end_time = time.time()
+    #     index_f.close()
+    #     print("Results:")
+    #     for rank, result in enumerate(results):
+    #         print(f'#{rank}: {result}')
+    #     print()
     

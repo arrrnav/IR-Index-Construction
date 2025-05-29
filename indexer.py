@@ -5,8 +5,8 @@ import re
 import ijson
 from urllib.parse import urlparse
 
-URLS_PATH_A = './analyst/ANALYST'
-URLS_PATH_D = './developer/DEV'
+URLS_PATH_A = './ANALYST'
+URLS_PATH_D = './ANALYST'  # Using ANALYST for testing
 QUERIES = ["cristina lopes" ,"machine learning", "ACM", "master of software engineering"]
 
 class Indexer:
@@ -299,30 +299,39 @@ class Indexer:
 
 if __name__ == "__main__":
     indexer = Indexer()
-    indexer.merge_files(9)
-
-    # indexer.index_all()
     
-    # # Save the inverted index to a file
-    # with open('inverted_index.json', 'w') as f:
-    #     json.dump(dict(indexer.inverted_index), f, indent=4, separators=(',', ': '), ensure_ascii=False)
-    # # Save the URL to ID mapping to a file
-    # with open('url_to_id.json', 'w') as f:
-    #     json.dump(dict(indexer.url_to_id), f, indent=4, separators=(',', ': '), ensure_ascii=False)
-    # # Save the ID to URL mapping to a file
-    # with open('id_to_url.json', 'w') as f:
-    #     json.dump(dict(indexer.id_to_url), f, indent=4, separators=(',', ': '), ensure_ascii=False)
+    # Step 1: Create the initial index from documents
+    print("Step 1: Creating initial index from documents...")
+    indexer.index_all()
+    
+    # Step 2: Save the inverted index to a file
+    print("Step 2: Saving inverted index...")
+    with open('inverted_index.json', 'w') as f:
+        json.dump(dict(indexer.inverted_index), f, indent=4, separators=(',', ': '), ensure_ascii=False)
+    
+    # Save the URL to ID mapping to a file
+    with open('url_to_id.json', 'w') as f:
+        json.dump(dict(indexer.url_to_id), f, indent=4, separators=(',', ': '), ensure_ascii=False)
+    
+    # Save the ID to URL mapping to a file
+    with open('id_to_url.json', 'w') as f:
+        json.dump(dict(indexer.id_to_url), f, indent=4, separators=(',', ': '), ensure_ascii=False)
 
-    # indexer_stats = indexer.get_stats()
-    # print(f"Number of unique words: {indexer_stats[0]}")
-    # print(f"Number of unique documents: {indexer_stats[1]}")
-    # print(f"Most common word: '{indexer_stats[2]}' with {indexer_stats[-1]} occurrences in {indexer_stats[1]} documents")
+    # Step 3: Generate stats
+    print("Step 3: Generating statistics...")
+    indexer_stats = indexer.get_stats()
+    print(f"Number of unique words: {indexer_stats[0]}")
+    print(f"Number of unique documents: {indexer_stats[1]}")
+    print(f"Most common word: '{indexer_stats[2]}' with {indexer_stats[-1]} occurrences in {indexer_stats[1]} documents")
 
-    # MILESTONE 2 - RUNNING QUERIES:
-    # for query in QUERIES:
-    #     print(f"\nCurrent query - {query}")
-    #     res = indexer.search(query)
-    #     for i, url in enumerate(res[:5], 1):
-    #         print(f"#{i} url = {url}")
+    # Step 4: Test some queries
+    print("\nStep 4: Testing queries...")
+    for query in QUERIES:
+        print(f"\nCurrent query - {query}")
+        res = indexer.search(query)
+        for i, url in enumerate(res[:5], 1):
+            print(f"#{i} url = {url}")
+    
+    print("\n✓ Indexing complete! Now you can run the merger and searcher.")
 
 

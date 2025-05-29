@@ -106,7 +106,7 @@ class Merger:
                 break
 
     def splitAlpha(self):
-        SAMPLE_INDEX_PATH = './full_index_test.jsonl'
+        SAMPLE_INDEX_PATH = './combined_index.jsonl'
         '''
         Subdivision | Letters             | Cumulative Percentage
         ------------|---------------------|----------------------
@@ -293,11 +293,12 @@ class Merger:
 
 if __name__ == "__main__":
     merger = Merger()
-    # merger.splitAlpha()
+    merger.merge_files(6)
+    merger.splitAlpha()
     
-    while True:
-        token = input("Enter a token to search for (or 'exit' to quit): ").strip()
-        if token.lower() == 'exit':
-            break
-        result = merger.posting_search(token)
-        print(result)
+    # while True:
+    #     token = input("Enter a token to search for (or 'exit' to quit): ").strip()
+    #     if token.lower() == 'exit':
+    #         break
+    #     result = merger.posting_search(token)
+    #     print(result)

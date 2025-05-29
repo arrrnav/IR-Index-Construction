@@ -197,32 +197,17 @@ class Indexer:
 
 
     def alphaFirst(self,keys):
-        # Sort the keys in alphabetical order
+        # Sort the keys in alphabetical order and returns the first one
         temp = list(keys)
-        # print(f"temp: {temp}")
         temp.sort()
         return temp[0]
     
 
-
-    def write_to_combined_index(self, filename, key, value):
-        # Read existing data
-        try:
-            with open(filename, 'r') as f:
-                data = json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
-            data = {}
-        
-        # Update the data
-        if key in data:
-            # Merge the new value with existing values
-            data[key] = {**data[key], **value}
-        else:
-            data[key] = value
-        
-        # Write back to file
-        with open(filename, 'w') as f:
-            json.dump(data, f, indent=2)
+    def writeToFile(self, obj):
+        # Opens file and write it so that each json obj is on a single line
+        with open("combined_index.jsonl", "a") as f:
+            json.dump(obj, f, separators=(',', ':'))
+            f.write('\n')
 
     def merge_files(self,n):
         # partial_index_1
@@ -232,104 +217,109 @@ class Indexer:
         # Stores keys
         '''
          {
-            "token": [index, {doc1: [pos, pos, pos, score], doc2: [pos, pos, pos, score]}]
+            "token": [index, {
+                            doc_id_1: {
+                                "c": count,
+                                "s": score
+                            },
+                            doc_id_1: {
+                                "c": count,
+                                "s": score
+                            }
+                        }
+                    ]
          }
         '''
         keys = {}
 
-        # populate the data strcctures
+        # populate the keys and generators strcuctures
         for i in range(1, n+1):
             json_file = open(f"{root_path}/index_{i}.json", 'r')
+            # Stores the generator for each partial index
             parsed_files.append(ijson.kvitems(json_file, ""))
 
-            # Handle duplicates, Append the values if it already exists
+            # Handle duplicates, Append the values if it already exists to the Keys dict
+            # For example if key "ai" is already in the keys dict make sure to append the new document values to that key
+            # When inserting keep track of the generator index as well so we can generate new values later
             while True:
+                # Get next
                 temp_key, val = next(parsed_files[i-1])
                 if temp_key not in keys:
                     keys[temp_key] = [i-1, val]
                     break
                 else:
-                    # print(keys[temp_key])
                     keys[temp_key][1] = keys[temp_key][1] | val
 
-        # print(keys.keys())
-        order = []
+
+        # Main merge loop
         while True:
 
             # Select the key that comes alphabetically first 
             selected_key = self.alphaFirst(keys.keys())
 
-            # print(f"Selected key: {selected_key}")
-            order.append(selected_key)
-            
-            # print("Writing to file")  
-            
+            # Make the object to write to the combined index file
+            '''
+                "key": { 
+                        {
+                            doc_id_1: {
+                                "c": count,
+                                "s": score
+                            },
+                            doc_id_1: {
+                                "c": count,
+                                "s": score
+                            }
+                        }
+            '''
+            # By accessing the second value, I am retrieveing the documents object
+            temp = {selected_key: keys[selected_key][1]}
 
-            self.write_to_combined_index('combined_index.json', selected_key, keys[selected_key][1])
-
-            
-            #  
             # Write to the file
+            self.writeToFile(temp)
 
-
+            # Gets the key's generator index
             selected_key_index = keys[selected_key][0]
             try:
                 while True:
+                    # New values from generator
                     temp_key, temp_val = next(parsed_files[selected_key_index])
                     if temp_key in keys:
                         # Merge the new value with existing values
+                        # For example if key "ai" is already in the keys dict make sure to append the new document values to that key
                         keys[temp_key][1] = keys[temp_key][1] | temp_val
                     else:
-                        # Keep the file index but use new value
-                        keys[temp_key] = [selected_key_index, temp_val]
+                        # Remove the old key and add the new one with the new value
                         keys.pop(selected_key)
+                        keys[temp_key] = [selected_key_index, temp_val]
                         break
             except StopIteration:
+                # If a generator has completed remove it from the keys list
                 keys.pop(selected_key)
-                # print(keys)
+                # If all generators have completed except only one, break
                 if len(keys) == 1:
                     break
-        print(keys.keys())
-        
-        index = keys[list(keys.keys())[0]][0]
-        order.append(list(keys.keys())[0])
-        self.write_to_combined_index('combined_index.json', list(keys.keys())[0], keys[list(keys.keys())[0]][1])
 
-        print(list(keys.keys())[0]) 
+        # Get the straggler value left in the keys dict and write it
+        selected_key = list(keys.keys())[0]
+        index = keys[selected_key][0]
+        self.writeToFile({selected_key :keys[selected_key][1]})
+
+        # Clean up loop to add everything else from the reamaining generator into the file
         while True:
             try:
-                
+                # Get key and val and add it to the file
                 key, val = next(parsed_files[index])
-                order.append(key)
-                # Handle dup file case
-                
-                self.write_to_combined_index('combined_index.json', key, val)
-
-
-                # else
-                # Write to the file
-                # print
-                
+                self.writeToFile({key: val})
+            
             except StopIteration:
                 break
-        print(order)
-        # while True:
-        #     try:
-        #         key1 = next(parsed_files[0])[0]
-        #         key2 = next(parsed_files[1])[0]
-        #         print(f"Next key1: {key1}")
-        #         print(f"Next key2: {key2}")
-        #     except StopIteration:    
-        #         break
         
-
-                
-
 
 if __name__ == "__main__":
     indexer = Indexer()
+    indexer.merge_files(9)
 
-    indexer.index_all()
+    # indexer.index_all()
     
     # # Save the inverted index to a file
     # with open('inverted_index.json', 'w') as f:
@@ -347,8 +337,10 @@ if __name__ == "__main__":
     # print(f"Most common word: '{indexer_stats[2]}' with {indexer_stats[-1]} occurrences in {indexer_stats[1]} documents")
 
     # MILESTONE 2 - RUNNING QUERIES:
-    for query in QUERIES:
-        print(f"\nCurrent query - {query}")
-        res = indexer.search(query)
-        for i, url in enumerate(res[:5], 1):
-            print(f"#{i} url = {url}")
+    # for query in QUERIES:
+    #     print(f"\nCurrent query - {query}")
+    #     res = indexer.search(query)
+    #     for i, url in enumerate(res[:5], 1):
+    #         print(f"#{i} url = {url}")
+
+

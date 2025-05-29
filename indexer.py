@@ -210,26 +210,8 @@ class Indexer:
             f.write('\n')
 
     def merge_files(self,n):
-        # partial_index_1
         root_path = "./partial_indexes"
-        # stores the file iterators
-        parsed_files = []
-        # Stores keys
-        '''
-         {
-            "token": [index, {
-                            doc_id_1: {
-                                "c": count,
-                                "s": score
-                            },
-                            doc_id_1: {
-                                "c": count,
-                                "s": score
-                            }
-                        }
-                    ]
-         }
-        '''
+        parsed_files = [] # stores the file iterators
         keys = {}
 
         # populate the keys and generators strcuctures

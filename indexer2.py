@@ -6,7 +6,7 @@ from urllib.parse import urlparse, urlunparse
 from bs4 import BeautifulSoup, NavigableString, Tag
 from math import log
 
-PARTIAL_INDEX_URLS = 10000
+PARTIAL_INDEX_URLS = 5000
 PARTIAL_INDEX_ROOT = "./partial_indexes"
 
 EXAMPLE_INDEX ='''
@@ -75,12 +75,14 @@ class Indexer:
         return tf_idf_score * tag_importance
 
     def new_partial_index(self):
-        # Create a new partial index file
+        self.inverted_index = dict(sorted(self.inverted_index.items(), key=lambda x: x[0]))
+
+        # Save the current SORTED inverted index to a file (prep for merging later)
         with open(f'{PARTIAL_INDEX_ROOT}/index_{self.index_num}.json', 'w') as f:
             json.dump(dict(self.inverted_index), f, indent=4, separators=(',', ': '), ensure_ascii=False)
         self.index_num += 1
         self.inverted_index = defaultdict(lambda: defaultdict(lambda: {"c": 0, "s": 0}))
-        print(f"New partial index: index_{self.index_num}.json")
+        print(f"New partial index created! index_{self.index_num}.json")
 
     def defrag_url(self, url):
         # Parse the URL and remove the fragment

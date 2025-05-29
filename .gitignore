@@ -5,7 +5,7 @@ __pycache__/
 
 # Ignore specific to our project
 developer/
-*.json
+*.json*
 
 # C extensions
 *.so

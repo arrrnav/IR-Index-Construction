@@ -5,9 +5,14 @@ import re
 import ijson
 from urllib.parse import urlparse
 
-URLS_PATH_A = './analyst/ANALYST'
-URLS_PATH_D = './developer/DEV'
-QUERIES = ["cristina lopes" ,"machine learning", "ACM", "master of software engineering"]
+
+
+A_TO_D = set("abcd")
+E_TO_H = set("efgh")
+I_TO_M = set("ijklm")
+N_TO_P = set("nop")
+Q_TO_S = set("qrs")
+T_TO_Z = set("tuvwxyz")
 
 class Merger:
     def __init__(self):
@@ -112,45 +117,187 @@ class Merger:
         5           | Q, R, S             | 16.75%
         6           | T, U, V, W, X, Y, Z | 14.06%
         '''
+        
+        pos_index_1 = defaultdict(int)
+        pos_index_2 = defaultdict(int)
+        pos_index_3 = defaultdict(int)
+        pos_index_4 = defaultdict(int)
+        pos_index_5 = defaultdict(int)
+        pos_index_6 = defaultdict(int)
 
-        a_to_d = set("abcd")
-        e_to_h = set("efgh")
-        i_to_m = set("ijklm")
-        n_to_p = set("nop")
-        q_to_s = set("qrs")
-        t_to_z = set("tuvwxyz")
+        positional_indexes = [pos_index_1, pos_index_2, pos_index_3, pos_index_4, pos_index_5, pos_index_6]
+
+        pos1 = 0
+        pos2 = 0
+        pos3 = 0
+        pos4 = 0
+        pos5 = 0
+        pos6 = 0
 
         with open(SAMPLE_INDEX_PATH, 'r') as f:
             for line in f:
-                obj = json.loads(line)
-                key = list(obj.keys())[0]
-                if key[0].lower() in a_to_d:
-                    with open("./partial_indexes/index_1.json", "a") as f1:
-                        json.dump(obj, f1, separators=(',', ':'))
+                line_length = len(line.strip())
+                posting = json.loads(line)
+                token = list(posting.keys())[0]
+
+                if token[0].lower() in A_TO_D:
+                    with open("./partial_indexes/index_1.jsonl", "a") as f1:
+                        json.dump(posting, f1, separators=(',', ':'))
                         f1.write('\n')
-                elif key[0].lower() in e_to_h:
+                        pos_index_1[token] = pos1
+                    pos1 += line_length + 2
+
+                elif token[0].lower() in E_TO_H:
                     with open("./partial_indexes/index_2.jsonl", "a") as f2:
-                        json.dump(obj, f2, separators=(',', ':'))
+                        json.dump(posting, f2, separators=(',', ':'))
                         f2.write('\n')
-                elif key[0].lower() in i_to_m:
+                        pos_index_2[token] = pos2
+                    pos2 += line_length + 2
+
+                elif token[0].lower() in I_TO_M:
                     with open("./partial_indexes/index_3.jsonl", "a") as f3:
-                        json.dump(obj, f3, separators=(',', ':'))
+                        json.dump(posting, f3, separators=(',', ':'))
                         f3.write('\n')
-                elif key[0].lower() in n_to_p:
+                        pos_index_3[token] = pos3
+                    pos3 += line_length + 2
+
+                elif token[0].lower() in N_TO_P:
                     with open("./partial_indexes/index_4.jsonl", "a") as f4:
-                        json.dump(obj, f4, separators=(',', ':'))
+                        json.dump(posting, f4, separators=(',', ':'))
                         f4.write('\n')
-                elif key[0].lower() in q_to_s:
+                        pos_index_4[token] = pos4
+                    pos4 += line_length + 2
+
+                elif token[0].lower() in Q_TO_S:
                     with open("./partial_indexes/index_5.jsonl", "a") as f5:
-                        json.dump(obj, f5, separators=(',', ':'))
+                        json.dump(posting, f5, separators=(',', ':'))
                         f5.write('\n')
+                        pos_index_5[token] = pos5
+                    pos5 += line_length + 2
+
                 else:
                     with open("./partial_indexes/index_6.jsonl", "a") as f6:
-                        json.dump(obj, f6, separators=(',', ':'))
+                        json.dump(posting, f6, separators=(',', ':'))
                         f6.write('\n')
+                        pos_index_6[token] = pos6
+                    pos6 += line_length + 2
+
+
+        for index, pos_index in enumerate(positional_indexes, start=1):
+            with open(f"./positional_indexes/index_{index}.json", "w") as f:
+                json.dump(pos_index, f)
+
+    def posting_search(self, token: str) -> dict:
+        if token[0].lower() in A_TO_D:
+            pos = None
+            with open("./positional_indexes/index_1.json", "r") as f1:
+                data = json.load(f1)
+                pos = data.get(token, None)
+            
+            if pos is None:
+                return (f"Token '{token}' not found in index 1.")
+            
+            with open("partial_indexes/index_1.jsonl") as f1:
+                f1.seek(pos)
+                line = f1.readline()
+                return json.loads(line)
+
+        elif token[0].lower() in E_TO_H:
+            pos = None
+            with open("./positional_indexes/index_2.json", "r") as f2:
+                data = json.load(f2)
+                pos = data.get(token, None)
+            
+            if pos is None:
+                return (f"Token '{token}' not found in index 2.")
+            
+            with open("partial_indexes/index_2.jsonl") as f2:
+                f2.seek(pos)
+                line = f2.readline()
+                return json.loads(line)
+
+        elif token[0].lower() in I_TO_M:
+            pos = None
+            with open("./positional_indexes/index_3.json", "r") as f3:
+                data = json.load(f3)
+                pos = data.get(token, None)
+            
+            if pos is None:
+                return (f"Token '{token}' not found in index 3.")
+            
+            with open("partial_indexes/index_3.jsonl") as f3:
+                f3.seek(pos)
+                line = f3.readline()
+                return json.loads(line)
+
+        elif token[0].lower() in N_TO_P:
+            pos = None
+            with open("./positional_indexes/index_4.json", "r") as f4:
+                data = json.load(f4)
+                pos = data.get(token, None)
+            
+            if pos is None:
+                return (f"Token '{token}' not found in index 4.")
+            
+            with open("partial_indexes/index_4.jsonl") as f4:
+                f4.seek(pos)
+                line = f4.readline()
+                return json.loads(line)
+
+        elif token[0].lower() in Q_TO_S:
+            pos = None
+            with open("./positional_indexes/index_5.json", "r") as f5:
+                data = json.load(f5)
+                pos = data.get(token, None)
+            
+            if pos is None:
+                return (f"Token '{token}' not found in index 5.")
+            
+            with open("partial_indexes/index_5.jsonl") as f5:
+                f5.seek(pos)
+                line = f5.readline()
+                return json.loads(line)
+
+        else:
+            pos = None
+            with open("./positional_indexes/index_6.json", "r") as f6:
+                data = json.load(f6)
+                pos = data.get(token, None)
+            
+            if pos is None:
+                return (f"Token '{token}' not found in index 6.")
+            
+            with open("partial_indexes/index_6.jsonl") as f6:
+                f6.seek(pos)
+                line = f6.readline()
+                return json.loads(line)
+
+
+        # pos = None
+        # with open("./positional_indexes/index_2.json", "r") as f2:
+        #     data = json.load(f2)
+        #     pos = data.get(token, None)
+        
+        # if pos is None:
+        #     return (f"Token '{token}' not found in index 2.")
+        
+        # print("pos", pos)
+        
+        # with open("partial_indexes/index_2.jsonl") as f2:
+        #     f2.seek(55)
+        #     line = f2.readline()
+        #     print("line", line)
+                # return json.loads(line)
 
         
 
 if __name__ == "__main__":
     merger = Merger()
-    merger.splitAlpha()
+    # merger.splitAlpha()
+    
+    while True:
+        token = input("Enter a token to search for (or 'exit' to quit): ").strip()
+        if token.lower() == 'exit':
+            break
+        result = merger.posting_search(token)
+        print(result)

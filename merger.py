@@ -1,9 +1,5 @@
-import os, json, bs4
 from collections import defaultdict
-from nltk.stem import PorterStemmer
-import re
-import ijson
-from urllib.parse import urlparse
+import json, ijson
 
 
 

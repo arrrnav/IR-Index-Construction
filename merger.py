@@ -141,42 +141,43 @@ class Merger:
                         json.dump(posting, f1, separators=(',', ':'))
                         f1.write('\n')
                         pos_index_1[token] = pos1
-                    pos1 += line_length + 2
+                    pos1 += line_length + 1
 
                 elif token[0].lower() in E_TO_H:
                     with open("./partial_indexes/index_2.jsonl", "a") as f2:
                         json.dump(posting, f2, separators=(',', ':'))
                         f2.write('\n')
                         pos_index_2[token] = pos2
-                    pos2 += line_length + 2
+                    pos2 += line_length + 1
 
                 elif token[0].lower() in I_TO_M:
                     with open("./partial_indexes/index_3.jsonl", "a") as f3:
                         json.dump(posting, f3, separators=(',', ':'))
                         f3.write('\n')
                         pos_index_3[token] = pos3
-                    pos3 += line_length + 2
+                    pos3 += line_length + 1
 
                 elif token[0].lower() in N_TO_P:
                     with open("./partial_indexes/index_4.jsonl", "a") as f4:
                         json.dump(posting, f4, separators=(',', ':'))
                         f4.write('\n')
                         pos_index_4[token] = pos4
-                    pos4 += line_length + 2
+                    pos4 += line_length + 1
 
                 elif token[0].lower() in Q_TO_S:
                     with open("./partial_indexes/index_5.jsonl", "a") as f5:
                         json.dump(posting, f5, separators=(',', ':'))
                         f5.write('\n')
                         pos_index_5[token] = pos5
-                    pos5 += line_length + 2
+                    pos5 += line_length + 1
 
                 else:
                     with open("./partial_indexes/index_6.jsonl", "a") as f6:
                         json.dump(posting, f6, separators=(',', ':'))
                         f6.write('\n')
                         pos_index_6[token] = pos6
-                    pos6 += line_length + 2
+
+                    pos6 += line_length + 1
 
 
         for index, pos_index in enumerate(positional_indexes, start=1):
@@ -266,6 +267,7 @@ class Merger:
             with open("partial_indexes/index_6.jsonl") as f6:
                 f6.seek(pos)
                 line = f6.readline()
+                print(line)
                 return json.loads(line)
 
 
@@ -289,7 +291,7 @@ class Merger:
 
 if __name__ == "__main__":
     merger = Merger()
-    # merger.splitAlpha()
+    merger.splitAlpha()
     
     while True:
         token = input("Enter a token to search for (or 'exit' to quit): ").strip()

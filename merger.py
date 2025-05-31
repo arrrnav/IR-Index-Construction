@@ -266,6 +266,7 @@ class Merger:
             with open("partial_indexes/index_6.jsonl") as f6:
                 f6.seek(pos)
                 line = f6.readline()
+                print(line)
                 return json.loads(line)
 
 

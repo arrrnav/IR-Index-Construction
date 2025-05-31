@@ -1,13 +1,16 @@
-import os, json, bs4, ijson
+import os, json, ijson
 from collections import defaultdict
 from nltk.stem import PorterStemmer
 import re
 from urllib.parse import urlparse, urlunparse
-from bs4 import BeautifulSoup, NavigableString, Tag
+from bs4 import BeautifulSoup
 from math import log
 
-PARTIAL_INDEX_URLS = 5000
-PARTIAL_INDEX_ROOT = "./partial_indexes"
+# PARTIAL_INDEX_URLS = 5000
+# PARTIAL_INDEX_ROOT = "./partial_indexes"
+
+PARTIAL_INDEX_URLS = 750
+PARTIAL_INDEX_ROOT = "./partial_indexes_analyst"
 
 EXAMPLE_INDEX ='''
 {
@@ -37,7 +40,25 @@ EXAMPLE_INDEX ='''
 }
 '''
 
-URLS_PATH = './developer/DEV'
+# URLS_PATH = './developer/DEV'
+URLS_PATH = './analyst/ANALYST'
+
+STOP_WORDS = {
+    "a", "about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are", "aren't",
+    "as", "at", "be", "because", "been", "before", "being", "below", "between", "both", "but", "by", "can't",
+    "cannot", "could", "couldn't", "did", "didn't", "do", "does", "doesn't", "doing", "don't", "down", "during",
+    "each", "few", "for", "from", "further", "had", "hadn't", "has", "hasn't", "have", "haven't", "having", "he",
+    "he'd", "he'll", "he's", "her", "here", "here's", "hers", "herself", "him", "himself", "his", "how", "how's",
+    "i", "i'd", "i'll", "i'm", "i've", "if", "in", "into", "is", "isn't", "it", "it's", "its", "itself", "let's",
+    "me", "more", "most", "mustn't", "my", "myself", "no", "nor", "not", "of", "off", "on", "once", "only", "or",
+    "other", "ought", "our", "ours", "ourselves", "out", "over", "own", "same", "shan't", "she", "she'd", "she'll",
+    "she's", "should", "shouldn't", "so", "some", "such", "than", "that", "that's", "the", "their", "theirs", "them",
+    "themselves", "then", "there", "there's", "these", "they", "they'd", "they'll", "they're", "they've", "this",
+    "those", "through", "to", "too", "under", "until", "up", "very", "was", "wasn't", "we", "we'd", "we'll", "we're",
+    "we've", "were", "weren't", "what", "what's", "when", "when's", "where", "where's", "which", "while", "who",
+    "who's", "whom", "why", "why's", "with", "won't", "would", "wouldn't", "you", "you'd", "you'll", "you're",
+    "you've", "your", "yours", "yourself", "yourselves"
+}
 
 class Indexer:
     def __init__(self):
@@ -118,29 +139,72 @@ class Indexer:
         self.id_to_url[doc_id] = url
 
         soup = BeautifulSoup(content, 'html.parser')
-        for tag in soup(['script', 'style']):
+        for tag in soup(['script', 'style', 'nav', 'footer', 'aside']):
             tag.decompose() # remove script and style tags
         
-        # position = 0 # track position of each token in the document
+        for tag_name, importance_score in self.important_tags.items():
+            for element in soup.find_all(tag_name):
+                tag_text = element.get_text(separator=' ', strip=True)
+                if not tag_text:
+                    continue
 
-        def recursive_tokenize(element):
-            if isinstance(element, NavigableString):
-                # tokenize text
-                text = re.sub(r'[^a-zA-Z0-9\s]', '', element)
-                text = text.lower()
-                unstemmized_tokens = text.split()
+                tag_text = re.sub(r'[^a-zA-Z0-9\s]', ' ', tag_text)
+                tag_text = re.sub(r'\s+', ' ', tag_text).lower().strip()
+
+                unstemmized_tokens = [token for token in tag_text.split() if len(token) > 2 and token not in STOP_WORDS]
+
                 for pre_token in unstemmized_tokens:
                     token = self.stemmer.stem(pre_token)
                     # increment the count and update score if the tag is more important than previously found
                     self.inverted_index[token][doc_id]["c"] += 1
-                    self.inverted_index[token][doc_id]["s"] = max(self.important_tags.get(element.parent.name, 1), self.inverted_index[token][doc_id]["s"]) 
+                    self.inverted_index[token][doc_id]["s"] = max(
+                            importance_score, 
+                            self.inverted_index[token][doc_id]["s"]
+                        )
 
-            elif isinstance(element, Tag):
-                for child in element.children:
-                    recursive_tokenize(child)
+        tags_list = [tag for tag in self.important_tags.keys()]
+        for tag in soup(tags_list):
+            tag.decompose()
 
-        # Call the recursive function on the soup object
-        recursive_tokenize(soup)
+        default_text = soup.get_text(separator=' ', strip=True)
+
+        if not default_text:
+            return
+
+        tag_text = re.sub(r'[^a-zA-Z0-9\s]', ' ', tag_text)
+        tag_text = re.sub(r'\s+', ' ', tag_text).lower().strip()
+
+        unstemmized_tokens = [token for token in tag_text.split() if len(token) > 2 and token not in STOP_WORDS]
+
+        for pre_token in unstemmized_tokens:
+            token = self.stemmer.stem(pre_token)
+            # increment the count and update score if the tag is more important than previously found
+            self.inverted_index[token][doc_id]["c"] += 1
+            self.inverted_index[token][doc_id]["s"] = max(
+                    importance_score, 
+                    self.inverted_index[token][doc_id]["s"]
+                )
+        
+            
+
+        # def recursive_tokenize(element):
+        #     if isinstance(element, NavigableString):
+        #         # tokenize text
+        #         text = re.sub(r'[^a-zA-Z0-9\s]', '', element)
+        #         text = text.lower()
+        #         unstemmized_tokens = text.split()
+        #         for pre_token in unstemmized_tokens:
+        #             token = self.stemmer.stem(pre_token)
+        #             # increment the count and update score if the tag is more important than previously found
+        #             self.inverted_index[token][doc_id]["c"] += 1
+        #             self.inverted_index[token][doc_id]["s"] = max(self.important_tags.get(element.parent.name, 1), self.inverted_index[token][doc_id]["s"]) 
+
+        #     elif isinstance(element, Tag):
+        #         for child in element.children:
+        #             recursive_tokenize(child)
+
+        # # Call the recursive function on the soup object
+        # recursive_tokenize(soup)
 
     def index_all(self):
         for root, _, files in os.walk(URLS_PATH):
@@ -181,20 +245,20 @@ class Indexer:
                 common_token_count = occurences
                 most_common_token = token
         
-        with open('stats.txt', 'w') as f:
+        with open('stats_analyst.txt', 'w') as f:
             print(f"Number of unique tokens: {unique_tokens}", file=f)
             print(f"Number of unique urls: {unique_urls}", file=f)
             print(f"Most common token: '{most_common_token}' with {common_token_count} occurrences in {unique_urls} urls", file=f)
 
         # Save the inverted index to a file
-        with open('inverted_index.json', 'w') as f:
+        with open('inverted_index_analyst.json', 'w') as f:
             sorted_index = dict(sorted(self.inverted_index.items(), key=lambda x: x[0]))
             json.dump(sorted_index, f, indent=4, separators=(',', ': '), ensure_ascii=False)
         # Save the URL to ID mapping to a file
-        with open('url_to_id.json', 'w') as f:
+        with open('url_to_id_analyst.json', 'w') as f:
             json.dump(dict(self.url_to_id), f, indent=4, separators=(',', ': '), ensure_ascii=False)
         # Save the ID to URL mapping to a file
-        with open('id_to_url.json', 'w') as f:
+        with open('id_to_url_analyst.json', 'w') as f:
             json.dump(dict(self.id_to_url), f, indent=4, separators=(',', ': '), ensure_ascii=False)
 
 
@@ -467,9 +531,9 @@ class IndexSearcher:
 
 
 if __name__ == "__main__":
-    # indexer = Indexer()
-    # indexer.index_all()
-    # indexer.generate_report()
+    indexer = Indexer()
+    indexer.index_all()
+    indexer.generate_report()
 
 
     # print(indexer.inverted_index)
@@ -483,23 +547,22 @@ if __name__ == "__main__":
     #     "master of software engineering",
     # ]
 
-    import time
-    IS = IndexSearcher()
-    # for query in ex_queries:
-        # print(f"Query: {query}")
-    while True:
-        query = input("Enter a search query (or 'exit' to quit): ")
-        if query.lower() == 'exit':
-            break
-        index_f = open('inverted_index.json', 'r')
-        start_time = time.time()
-        results = IS.search(query, index_f)
-        end_time = time.time()
-        index_f.close()
-        # print(f"Results (retrieved in {end_time - start_time} seconds):")
-        print("Results:")
-        for rank, result in enumerate(results):
-            print(f'#{rank}: {result}')
-        print()
-    # print()
+    # import time
+    # IS = IndexSearcher()
+    # # for query in ex_queries:
+    #     # print(f"Query: {query}")
+    # while True:
+    #     query = input("Enter a search query (or 'exit' to quit): ")
+    #     if query.lower() == 'exit':
+    #         break
+    #     index_f = open('inverted_index.json', 'r')
+    #     start_time = time.time()
+    #     results = IS.search(query, index_f)
+    #     end_time = time.time()
+    #     index_f.close()
+    #     # print(f"Results (retrieved in {end_time - start_time} seconds):")
+    #     print("Results:")
+    #     for rank, result in enumerate(results):
+    #         print(f'#{rank}: {result}')
+    #     print()
     

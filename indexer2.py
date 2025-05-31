@@ -6,11 +6,11 @@ from urllib.parse import urlparse, urlunparse
 from bs4 import BeautifulSoup
 from math import log
 
-# PARTIAL_INDEX_URLS = 5000
-# PARTIAL_INDEX_ROOT = "./partial_indexes"
+PARTIAL_INDEX_URLS = 5000
+PARTIAL_INDEX_ROOT = "./partial_indexes_dev"
 
-PARTIAL_INDEX_URLS = 750
-PARTIAL_INDEX_ROOT = "./partial_indexes_analyst"
+# PARTIAL_INDEX_URLS = 750
+# PARTIAL_INDEX_ROOT = "./partial_indexes_analyst"
 
 EXAMPLE_INDEX ='''
 {
@@ -40,8 +40,8 @@ EXAMPLE_INDEX ='''
 }
 '''
 
-# URLS_PATH = './developer/DEV'
-URLS_PATH = './analyst/ANALYST'
+URLS_PATH = './developer/DEV'
+# URLS_PATH = './analyst/ANALYST'
 
 STOP_WORDS = {
     "a", "about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are", "aren't",
@@ -71,12 +71,12 @@ class Indexer:
             "h1": 10,
             "h2": 6,
             "h3": 4,
-            "strong": 2.5,
-            "b": 2.5
+            "strong": 2,
+            "b": 2
             # default: 1
         }
         self.stemmer = PorterStemmer()
-        self.index_num = 0
+        self.index_num = 1
         # self.position = 0
     
     def get_importance_factor(self, token, doc_id):
@@ -222,43 +222,45 @@ class Indexer:
                 
                 except Exception as e:
                     print(f"An error occurred while processing {filepath}: {e}")
+                    
+        self.new_partial_index()
 
-        for token in self.inverted_index:
-            for doc_id in self.inverted_index[token]:
-                # Calculate the importance factor for each token and document ID
-                self.inverted_index[token][doc_id]["s"] = self.get_importance_factor(token, doc_id)
+        # for token in self.inverted_index:
+        #     for doc_id in self.inverted_index[token]:
+        #         # Calculate the importance factor for each token and document ID
+        #         self.inverted_index[token][doc_id]["s"] = self.get_importance_factor(token, doc_id)
 
 
 
-    def generate_report(self):
-        unique_tokens = len(self.inverted_index)
-        unique_urls = len(self.url_to_id)
+    def generate_logs(self):
+        # unique_tokens = len(self.inverted_index)
+        # unique_urls = len(self.url_to_id)
 
-        most_common_token = None
-        common_token_count = 0
+        # most_common_token = None
+        # common_token_count = 0
 
-        for token in self.inverted_index:
-            # Get the most common word in the inverted index
-            occurences = sum(self.inverted_index[token][doc_id]["c"] for doc_id in self.inverted_index[token])
-            # print(temp_occurences)
-            if occurences > common_token_count:
-                common_token_count = occurences
-                most_common_token = token
+        # for token in self.inverted_index:
+        #     # Get the most common word in the inverted index
+        #     occurences = sum(self.inverted_index[token][doc_id]["c"] for doc_id in self.inverted_index[token])
+        #     # print(temp_occurences)
+        #     if occurences > common_token_count:
+        #         common_token_count = occurences
+        #         most_common_token = token
         
-        with open('stats_analyst.txt', 'w') as f:
-            print(f"Number of unique tokens: {unique_tokens}", file=f)
-            print(f"Number of unique urls: {unique_urls}", file=f)
-            print(f"Most common token: '{most_common_token}' with {common_token_count} occurrences in {unique_urls} urls", file=f)
+        # with open('stats_dev.txt', 'w') as f:
+        #     print(f"Number of unique tokens: {unique_tokens}", file=f)
+        #     print(f"Number of unique urls: {unique_urls}", file=f)
+        #     print(f"Most common token: '{most_common_token}' with {common_token_count} occurrences in {unique_urls} urls", file=f)
 
         # Save the inverted index to a file
-        with open('inverted_index_analyst.json', 'w') as f:
+        with open('inverted_index_dev.json', 'w') as f:
             sorted_index = dict(sorted(self.inverted_index.items(), key=lambda x: x[0]))
             json.dump(sorted_index, f, indent=4, separators=(',', ': '), ensure_ascii=False)
         # Save the URL to ID mapping to a file
-        with open('url_to_id_analyst.json', 'w') as f:
+        with open('url_to_id_dev.json', 'w') as f:
             json.dump(dict(self.url_to_id), f, indent=4, separators=(',', ': '), ensure_ascii=False)
         # Save the ID to URL mapping to a file
-        with open('id_to_url_analyst.json', 'w') as f:
+        with open('id_to_url_dev.json', 'w') as f:
             json.dump(dict(self.id_to_url), f, indent=4, separators=(',', ': '), ensure_ascii=False)
 
 
@@ -378,191 +380,9 @@ class IndexSearcher:
         
 
 
-            #     doc_ids.append(set(self.inverted_index[token].keys()))
-            # else:
-            #     return []
-        
-        # boolean and intersection of all doc sets
-        # res_docs = set.intersection(*doc_ids)
-
-# class IndexSearcher2:
-#     def __init__(self):
-#         self.id_to_url = None
-#         with open('id_to_url.json', 'r') as f:
-#             self.id_to_url = json.load(f)
-
-#         self.stemmer = PorterStemmer()
-
-#     def has_boolean_operators(self, query):
-#         """Check if query contains boolean operators"""
-#         boolean_pattern = r'\b(AND|OR|NOT)\b'
-#         return bool(re.search(boolean_pattern, query, re.IGNORECASE))
-
-#     def parse_boolean_query(self, query):
-#         """Parse boolean query into tokens and operators"""
-#         # Split on boolean operators while preserving them
-#         tokens = re.split(r'\s+(AND|OR|NOT)\s+', query, flags=re.IGNORECASE)
-#         return [token.strip() for token in tokens if token.strip()]
-
-#     def get_documents_for_term(self, term, index_f):
-#         """Get document IDs for a specific term from the index"""
-#         index_f.seek(0)
-#         index_generator = ijson.kvitems(index_f, '')
-        
-#         # Clean and stem the term
-#         clean_term = re.sub(r'[^a-zA-Z0-9\s]', '', term)
-#         stemmed_term = self.stemmer.stem(clean_term.lower())
-        
-#         for token, doc_ids in index_generator:
-#             if token == stemmed_term:
-#                 return doc_ids
-#         return {}
-
-#     def evaluate_boolean_expression(self, tokens, index_f):
-#         """Evaluate boolean expression and return document scores"""
-#         if not tokens:
-#             return {}
-        
-#         # Initialize with first term
-#         if tokens[0].upper() not in ['AND', 'OR', 'NOT']:
-#             result_scores = self.get_documents_for_term(tokens[0], index_f)
-#             result_docs = set(result_scores.keys())
-#         else:
-#             result_scores = {}
-#             result_docs = set()
-        
-#         i = 1
-#         while i < len(tokens):
-#             if i + 1 < len(tokens):
-#                 operator = tokens[i].upper()
-#                 next_term = tokens[i + 1]
-                
-#                 if operator not in ['AND', 'OR', 'NOT']:
-#                     i += 1
-#                     continue
-                
-#                 next_term_scores = self.get_documents_for_term(next_term, index_f)
-#                 next_docs = set(next_term_scores.keys())
-                
-#                 if operator == 'AND':
-#                     # Keep only documents that appear in both sets
-#                     result_docs = result_docs.intersection(next_docs)
-#                     # Update scores for intersected documents
-#                     new_scores = {}
-#                     for doc_id in result_docs:
-#                         score = result_scores.get(doc_id, 0) + next_term_scores.get(doc_id, {}).get('s', 0)
-#                         new_scores[doc_id] = {'s': score}
-#                     result_scores = new_scores
-                    
-#                 elif operator == 'OR':
-#                     # Combine documents from both sets
-#                     result_docs = result_docs.union(next_docs)
-#                     # Combine scores
-#                     for doc_id in next_docs:
-#                         if doc_id in result_scores:
-#                             result_scores[doc_id]['s'] += next_term_scores[doc_id]['s']
-#                         else:
-#                             result_scores[doc_id] = next_term_scores[doc_id]
-                            
-#                 elif operator == 'NOT':
-#                     # Remove documents that contain the next term
-#                     result_docs = result_docs - next_docs
-#                     # Remove from scores
-#                     for doc_id in next_docs:
-#                         result_scores.pop(doc_id, None)
-                
-#                 i += 2
-#             else:
-#                 i += 1
-        
-#         return result_scores
-
-#     def search(self, query, index_f):
-#         """Enhanced search method that handles both regular and boolean queries"""
-#         # Check if query contains boolean operators
-#         if self.has_boolean_operators(query):
-#             # Handle boolean query
-#             tokens = self.parse_boolean_query(query)
-#             print(f"Boolean query detected: {tokens}")
-            
-#             doc_scores = self.evaluate_boolean_expression(tokens, index_f)
-            
-#             if not doc_scores:
-#                 return []
-            
-#             # Sort by score and return top results
-#             sorted_results = sorted(doc_scores.items(), key=lambda x: x[1]['s'], reverse=True)
-#             return [self.id_to_url[doc_id] for doc_id, _ in sorted_results[:5]]
-        
-#         else:
-#             # Original search logic for regular queries
-#             index_f.seek(0)
-#             index_generator = ijson.kvitems(index_f, '')
-
-#             query_text = re.sub(r'[^a-zA-Z0-9\s]', '', query)
-#             query_tokens = [self.stemmer.stem(word.lower()) for word in query_text.split()]
-#             query_tokens = sorted(set(query_tokens))
-#             print(query_tokens)
-
-#             if not query_tokens:
-#                 print("shouldnt happen")
-#                 return []
-
-#             ids_and_scores = defaultdict(int)
-
-#             for token in query_tokens:
-#                 index_f.seek(0)
-#                 index_generator = ijson.kvitems(index_f, '')
-#                 doc_ids = None
-                
-#                 for curr_token, curr_doc_ids in index_generator:
-#                     if token == curr_token:
-#                         doc_ids = curr_doc_ids
-#                         break
-
-#                 if doc_ids is None:
-#                     continue
-
-#                 for doc_id in doc_ids:
-#                     ids_and_scores[doc_id] += doc_ids[doc_id]["s"]
-
-#             ids_and_scores = sorted(ids_and_scores.items(), key=lambda x: x[1], reverse=True)
-#             return [self.id_to_url[doc_id] for doc_id, _ in ids_and_scores[:5]]
 
 
 if __name__ == "__main__":
     indexer = Indexer()
     indexer.index_all()
-    indexer.generate_report()
-
-
-    # print(indexer.inverted_index)
-    # print(indexer.url_to_id)
-    # print(indexer.id_to_url)
-
-    # ex_queries = [
-    #     "Cristina Lopes",
-    #     "machine learning",
-    #     "ACM",
-    #     "master of software engineering",
-    # ]
-
-    # import time
-    # IS = IndexSearcher()
-    # # for query in ex_queries:
-    #     # print(f"Query: {query}")
-    # while True:
-    #     query = input("Enter a search query (or 'exit' to quit): ")
-    #     if query.lower() == 'exit':
-    #         break
-    #     index_f = open('inverted_index.json', 'r')
-    #     start_time = time.time()
-    #     results = IS.search(query, index_f)
-    #     end_time = time.time()
-    #     index_f.close()
-    #     # print(f"Results (retrieved in {end_time - start_time} seconds):")
-    #     print("Results:")
-    #     for rank, result in enumerate(results):
-    #         print(f'#{rank}: {result}')
-    #     print()
-    
+    indexer.generate_logs()

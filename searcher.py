@@ -34,25 +34,25 @@ T_TO_Z = set("tuvwxyz")
     #             print(f"positional index #{i} not found")
     #             self.positional_indexes[i] = {}
         
-#     def _calc_doc_stats(self):
-#         all_docs = set() 
-#         for p_i in range(1, 7):
-#             try:
-#                 # Fix: Use the correct path that matches merger.py output
-#                 with open(f"./partial_indexes/index_{p_i}.jsonl", "r") as f:
-#                     for line in f:
-#                         posting = json.loads(line)
-#                         token = list(posting.keys())[0]
-#                         doc_list = posting[token]
+    # def _calc_doc_stats(self):
+    #     all_docs = set() 
+    #     for p_i in range(1, 7):
+    #         try:
+    #             # Fix: Use the correct path that matches merger.py output
+    #             with open(f"./partial_indexes/index_{p_i}.jsonl", "r") as f:
+    #                 for line in f:
+    #                     posting = json.loads(line)
+    #                     token = list(posting.keys())[0]
+    #                     doc_list = posting[token]
 
-#                         # count unique docs for token 
-#                         unique_docs = set(doc_list.keys()) if isinstance(doc_list, dict) else set(doc_list)
-#                         self.document_freqs[token] = len(unique_docs)
-#                         all_docs.update(unique_docs)
-#             except FileNotFoundError:
-#                 continue 
-#         self.total_docs = len(all_docs)
-#         print(f"total docs: {self.total_docs}")
+    #                     # count unique docs for token 
+    #                     unique_docs = set(doc_list.keys()) if isinstance(doc_list, dict) else set(doc_list)
+    #                     self.document_freqs[token] = len(unique_docs)
+    #                     all_docs.update(unique_docs)
+    #         except FileNotFoundError:
+    #             continue 
+    #     self.total_docs = len(all_docs)
+    #     print(f"total docs: {self.total_docs}")
 
     # def _get_token_partition(self, token):
     #     if not token: 
@@ -284,7 +284,11 @@ class Searcher:
     def __init__(self):
         self.positional_indexes = {}
         self.stemmer = PorterStemmer()
+        self.document_freqs = {}
+        self.id_to_url = {}
         self._load_pos_indexes()
+        self._calc_doc_stats()
+        
 
     def _load_pos_indexes(self):
         for i in range(1, 7):
@@ -296,6 +300,25 @@ class Searcher:
             except FileNotFoundError:
                 print(f"positional index #{i} not found")
                 self.positional_indexes[i] = {}
+        
+        with open ("id_to_url_dev.json", "r") as f:
+            self.id_to_url = json.loads(f.read())
+
+    
+    def _calc_doc_stats(self):
+        all_docs = set() 
+        for p_i in range(1, 7):
+            with open(f"./partial_indexes/index_{p_i}.jsonl", "r") as f:
+                for line in f:
+                    posting = json.loads(line)
+                    token = list(posting.keys())[0]
+                    doc_list = posting[token]
+
+                    # count unique docs for token 
+                    self.document_freqs[token] = len(doc_list)
+                    all_docs.update(list(doc_list.keys()))
+        self.total_docs = len(all_docs)
+        print(f"total docs: {self.total_docs}")
 
     def _get_token_partition(self, token):
         if not token: 
@@ -312,21 +335,25 @@ class Searcher:
     def _get_postings(self, token):
         partition = self._get_token_partition(token)
 
-        pos = self.positional_indexes[partition][token]
-        with open(f"./partial_indexes/index_{partition}.jsonl", "r") as f:
-            print(partition)
-            f.seek(pos)
-            line = f.readline()  # Fix: readline() not readLine()
-            print(line)
-            # posting = json.loads(line)
-            # return posting[token]
+        try:
+
+            pos = self.positional_indexes[partition][token]
+            with open(f"./partial_indexes/index_{partition}.jsonl", "r") as f:
+                # print(partition)
+                f.seek(pos)
+                line = f.readline()  # Fix: readline() not readLine()
+                # print(line)
+                posting = json.loads(line)
+                return posting[token]
+        except:
+            return None
+        
 
 
     def _calc_tf_idf(self, q_tokens, docs):
         scores = defaultdict(float)
         for t in q_tokens:
             postings = self._get_postings(t)
-            if not postings: continue 
             df = self.document_freqs.get(t, 1)
             idf = math.log(self.total_docs / df) 
             for id in docs:
@@ -370,12 +397,27 @@ class Searcher:
 
         ids_and_scores = defaultdict(int)
 
+        postings = {}
+        docs = {}
+
         for token in query_tokens:
             posting = self._get_postings(token)
-            print(posting)
-            
-        
+            if not posting:
+                continue
 
+            postings[token] = posting
+
+            
+            if not docs:
+                docs = set(postings[token].keys())
+            else:
+                docs = docs.union(set(postings[token].keys()))
+        
+        if not docs:
+            return []
+        # print("docs: ", docs)
+        ids_and_scores = self._calc_tf_idf(query_tokens, docs)
+        
         ids_and_scores = sorted(ids_and_scores.items(), key=lambda x: x[1], reverse=True)
         return [self.id_to_url[doc_id] for doc_id, _ in ids_and_scores[:5]]
 
@@ -391,7 +433,7 @@ if __name__ == "__main__":
         start_time = time.time()
         results = searcher.search(query)
         end_time = time.time()
-        # print(f"Results (retrieved in {end_time - start_time} seconds):")
+        print(f"Results (retrieved in {(end_time - start_time)*1000} milliseconds):")
         print("Results:")
         for rank, result in enumerate(results):
             print(f'#{rank}: {result}')

@@ -436,5 +436,5 @@ if __name__ == "__main__":
         print(f"Results (retrieved in {(end_time - start_time)*1000} milliseconds):")
         print("Results:")
         for rank, result in enumerate(results):
-            print(f'#{rank}: {result}')
+            print(f'#{rank+1}: {result}')
         print()

@@ -96,14 +96,14 @@ class Indexer:
         return tf_idf_score * tag_importance
 
     def new_partial_index(self):
+        print(f"New partial index created! index_{self.index_num}.json")
         self.inverted_index = dict(sorted(self.inverted_index.items(), key=lambda x: x[0]))
-
         # Save the current SORTED inverted index to a file (prep for merging later)
         with open(f'{PARTIAL_INDEX_ROOT}/index_{self.index_num}.json', 'w') as f:
             json.dump(dict(self.inverted_index), f, indent=4, separators=(',', ': '), ensure_ascii=False)
         self.index_num += 1
         self.inverted_index = defaultdict(lambda: defaultdict(lambda: {"c": 0, "s": 0}))
-        print(f"New partial index created! index_{self.index_num}.json")
+        
 
     def defrag_url(self, url):
         # Parse the URL and remove the fragment
@@ -222,7 +222,7 @@ class Indexer:
                 
                 except Exception as e:
                     print(f"An error occurred while processing {filepath}: {e}")
-                    
+
         self.new_partial_index()
 
         # for token in self.inverted_index:

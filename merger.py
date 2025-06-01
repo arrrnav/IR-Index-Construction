@@ -28,7 +28,7 @@ class Merger:
             f.write('\n')
 
     def merge_files(self,n):
-        root_path = "./partial_indexes"
+        root_path = "./partial_indexes_dev"
         parsed_files = [] # stores the file iterators
         keys = {}
 
@@ -290,11 +290,12 @@ class Merger:
 
 if __name__ == "__main__":
     merger = Merger()
+    merger.merge_files(11)
     # merger.splitAlpha()
     
-    while True:
-        token = input("Enter a token to search for (or 'exit' to quit): ").strip()
-        if token.lower() == 'exit':
-            break
-        result = merger.posting_search(token)
-        print(result)
+    # while True:
+    #     token = input("Enter a token to search for (or 'exit' to quit): ").strip()
+    #     if token.lower() == 'exit':
+    #         break
+    #     result = merger.posting_search(token)
+    #     print(result)

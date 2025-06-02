@@ -349,6 +349,79 @@ class Searcher:
             return None
         
 
+    def _calc_query_vector(self, query_tokens):
+        query_vector = {}
+
+        token_counts = {}
+        for token in query_tokens:
+            if token in token_counts:
+                token_counts[token] += 1
+            else:
+                token_counts[token] = 1
+        
+        for token in token_counts:
+            count = token_counts[token]
+
+            tf = 1 + math.log(count)
+
+            df = self.document_freqs.get(token, 1)
+            
+            if df > 0:
+                idf = math.log(self.total_docs / df)
+                query_vector[token] = tf * idf
+        
+        return query_vector
+    
+    def _calc_document_vector(self, doc_id, query_tokens):
+        doc_vector = {}
+
+
+        for token in query_tokens:
+            postings = self._get_postings(token)
+            if (doc_id in postings):
+                tf = postings[doc_id]["c"]
+
+                if tf > 0:
+                    tf = 1 + math.log(tf)
+                    df = self.document_freqs.get(token, 1)
+                    idf = math.log(self.total_docs / df)
+
+                    doc_vector[token] = tf*idf
+
+        return doc_vector
+    
+    def _cosine_sim(self, query_vector, doc_vector):
+        
+        # get dot product
+        dot_product = 0
+        for token in query_vector:
+            if token in doc_vector:
+                dot_product += query_vector[token] * doc_vector[token]
+        
+        # Calculate magnitudes
+        query_magnitude = math.sqrt(sum(query_vector[score]**2 for score in query_vector))
+        doc_magnitude = math.sqrt(sum(doc_vector[score]**2 for score in doc_vector))
+
+        # Return the cosin sim
+        return dot_product / (query_magnitude * doc_magnitude)
+
+
+    def _get_ids_and_scores(self, query_tokens, docs):
+        sims = {}
+
+        query_vector = self._calc_query_vector(query_tokens)
+
+        if not query_tokens:
+            return
+        
+        for doc_id in docs:
+            doc_vector = self._calc_document_vector(doc_id, query_tokens)
+            sim = self._cosine_sim(query_vector, doc_vector) 
+
+            sims[doc_id] = sim
+
+        return sims
+
 
     def _calc_tf_idf(self, q_tokens, docs):
         scores = defaultdict(float)
@@ -399,6 +472,13 @@ class Searcher:
 
         postings = {}
         docs = {}
+        # docs = set()
+
+        # for token in query_tokens:
+        #     posting = self._get_postings(token)
+        #     if posting:
+        #         docs.update(posting.keys())
+            
 
         for token in query_tokens:
             posting = self._get_postings(token)
@@ -415,10 +495,17 @@ class Searcher:
         
         if not docs:
             return []
-        # print("docs: ", docs)
+        # # print("docs: ", docs)
         ids_and_scores = self._calc_tf_idf(query_tokens, docs)
+
+        print("Scores:", ids_and_scores)
         
         ids_and_scores = sorted(ids_and_scores.items(), key=lambda x: x[1], reverse=True)
+
+        
+        # ids_and_scores = self._get_ids_and_scores(query_tokens, docs)
+        # ids_and_scores = sorted(ids_and_scores.items(), key=lambda x: x[1], reverse=True)
+        # print(ids_and_scores)
         return [self.id_to_url[doc_id] for doc_id, _ in ids_and_scores[:5]]
 
 

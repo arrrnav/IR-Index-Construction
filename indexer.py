@@ -1,328 +1,240 @@
-import os, json, bs4
+import os, json
 from collections import defaultdict
 from nltk.stem import PorterStemmer
 import re
-import ijson
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlunparse
+from bs4 import BeautifulSoup
+from math import log
 
-URLS_PATH_A = './analyst/ANALYST'
-URLS_PATH_D = './developer/DEV'
-QUERIES = ["cristina lopes" ,"machine learning", "ACM", "master of software engineering"]
+PARTIAL_INDEX_URLS = 5000
+PARTIAL_INDEX_ROOT = "./partial_indexes"
+
+# PARTIAL_INDEX_URLS = 750
+# PARTIAL_INDEX_ROOT = "./partial_indexes_analyst"
+
+EXAMPLE_INDEX ='''
+{
+    "token": {
+        doc_id_1: {
+            "c": count,
+            "s": score
+        },
+        doc_id_1: {
+            "c": count,
+            "s": score
+        }
+    },
+    .
+    .
+    .
+    "example": {
+        0: {
+            "c": 104,
+            "s": 10
+        },
+        1: {
+            "c": 83,
+            "s": 8
+        }
+    }
+}
+'''
+
+URLS_PATH = './developer/DEV'
+# URLS_PATH = './analyst/ANALYST'
+
+STOP_WORDS = {
+    "a", "about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are", "aren't",
+    "as", "at", "be", "because", "been", "before", "being", "below", "between", "both", "but", "by", "can't",
+    "cannot", "could", "couldn't", "did", "didn't", "do", "does", "doesn't", "doing", "don't", "down", "during",
+    "each", "few", "for", "from", "further", "had", "hadn't", "has", "hasn't", "have", "haven't", "having", "he",
+    "he'd", "he'll", "he's", "her", "here", "here's", "hers", "herself", "him", "himself", "his", "how", "how's",
+    "i", "i'd", "i'll", "i'm", "i've", "if", "in", "into", "is", "isn't", "it", "it's", "its", "itself", "let's",
+    "me", "more", "most", "mustn't", "my", "myself", "no", "nor", "not", "of", "off", "on", "once", "only", "or",
+    "other", "ought", "our", "ours", "ourselves", "out", "over", "own", "same", "shan't", "she", "she'd", "she'll",
+    "she's", "should", "shouldn't", "so", "some", "such", "than", "that", "that's", "the", "their", "theirs", "them",
+    "themselves", "then", "there", "there's", "these", "they", "they'd", "they'll", "they're", "they've", "this",
+    "those", "through", "to", "too", "under", "until", "up", "very", "was", "wasn't", "we", "we'd", "we'll", "we're",
+    "we've", "were", "weren't", "what", "what's", "when", "when's", "where", "where's", "which", "while", "who",
+    "who's", "whom", "why", "why's", "with", "won't", "would", "wouldn't", "you", "you'd", "you'll", "you're",
+    "you've", "your", "yours", "yourself", "yourselves"
+}
+
+TOKEN_FILTERS = ['ensm', 'ensg']
 
 class Indexer:
     def __init__(self):
-        # example index key, value:
-        # 'gilbert': {'doc1': [1, 2], 'doc2': [3, 4]}
-        # - gilbert appears in doc1 at positions 1 and 2, and in doc2 at positions 3 and 4
-        self.inverted_index = defaultdict(lambda: defaultdict(list))
+        self.inverted_index = defaultdict(lambda: defaultdict(lambda: {"c": 0, "s": 0}))
         self.url_to_id = defaultdict(int)
         self.id_to_url = defaultdict(str)
         self.next_available_id = 0
-        self.important_tags = ["h1", "h2", "h3", "strong", "b", "title"]
+        self.important_tags = {
+            "title": 8,
+            "h1": 10,
+            "h2": 6,
+            "h3": 4,
+            "strong": 2,
+            "b": 2
+            # default: 1
+        }
         self.stemmer = PorterStemmer()
-        self.words_in_tags = defaultdict(str)
-        self.words = []
-        self.docs = 0
+        self.index_num = 1
+        # self.position = 0
+    
+    def get_importance_factor(self, token, doc_id):
+        # importance based on TF-IDF score and tag importance
 
-    def search(self, query):
-        # list of the words in the query list tokenized
-        query_tokens = [self.stemmer.stem(word.lower()) for word in query.split()]
+        #TF-IDF score = TF(token, document) * IDF(token)
+        # TF(token, document) = (number of times token appears in document) / (total number of tokens in document)
+        # IDF(token) = log(total number of documents / number of documents containing token)
 
-        if not query_tokens:
-            return [] # return empty list
+        # importance factor = TF-IDF score * tag importance
+        tag_importance = self.inverted_index[token][doc_id]["s"]
+        tf_score = self.inverted_index[token][doc_id]["c"] / len(self.inverted_index)
+        idf_score = log(len(self.url_to_id) / len(self.inverted_index[token]))
+
+        tf_idf_score = tf_score * idf_score
+
+        return tf_idf_score * tag_importance
+
+    def new_partial_index(self):
+        print(f"New partial index created! index_{self.index_num}.json")
+        self.inverted_index = dict(sorted(self.inverted_index.items(), key=lambda x: x[0]))
+        # Save the current SORTED inverted index to a file (prep for merging later)
+        with open(f'{PARTIAL_INDEX_ROOT}/index_{self.index_num}.json', 'w') as f:
+            json.dump(dict(self.inverted_index), f, indent=4, separators=(',', ': '), ensure_ascii=False)
+        self.index_num += 1
+        self.inverted_index = defaultdict(lambda: defaultdict(lambda: {"c": 0, "s": 0}))
         
-        # fetch doc ids for each word
-        doc_ids = []
-        for t in query_tokens:
-            if t in self.inverted_index:
-                doc_ids.append(set(self.inverted_index[word].keys()))
-            else:
-                return []
-        
-        # boolean and intersection of all doc sets
-        res_docs = set.intersection(*doc_ids)
-
-        # list of matching urls
-        return [self.id_to_url[id] for id in res_docs]
 
     def defrag_url(self, url):
         # Parse the URL and remove the fragment
         parsed_url = urlparse(url)
-        url_without_fragment = parsed_url.scheme + "://" + parsed_url.netloc + parsed_url.path
+        url_without_fragment = urlunparse((
+            parsed_url.scheme,
+            parsed_url.netloc,
+            parsed_url.path,
+            parsed_url.params,
+            parsed_url.query,
+            ''
+        ))
+        # url_without_fragment = parsed_url.scheme + "://" + parsed_url.netloc + parsed_url.path
         return url_without_fragment
-
+    
+    def isFilterable(self, token) -> bool:
+        if any(token.startswith(prefix) for prefix in TOKEN_FILTERS):
+            return True
+        try:
+            int(token)
+            return (len(token) != 4)
+        except ValueError:
+            return False
+    
     def index(self, url, content):
-        doc_id = None
-        if url not in self.url_to_id:
-            # Assign a new ID to the URL if it doesn't exist 
-            doc_id = self.next_available_id
+        # Check if the URL is already indexed (for use in multiple URLS with same path but different fragments)
+        if url in self.url_to_id:
+            return
 
-            # Maps the URL to a unique ID
-            self.url_to_id[url] = doc_id
+        # for debugging
+        print(f"id: {self.next_available_id} url: {url}")
 
-            # Maps the unique ID to the URL
-            self.id_to_url[doc_id] = url
-            self.next_available_id += 1
-        else:
-            doc_id = self.url_to_id[url]
+        # Assign a new ID to the URL if it doesn't exist 
+        doc_id = self.next_available_id
+        self.next_available_id += 1
 
-        soup = bs4.BeautifulSoup(content, 'html.parser')
+        # Offload when reaching threshold
+        if self.next_available_id % PARTIAL_INDEX_URLS == 0:
+            self.new_partial_index()
+
+        # Update the URL to ID mapping
+        self.url_to_id[url] = doc_id
+        self.id_to_url[doc_id] = url
+
+        soup = BeautifulSoup(content, 'html.parser')
+        for tag in soup(['script', 'style', 'nav', 'footer', 'aside']):
+            tag.decompose() # remove script and style tags
         
-        # Go through the important tags and extract text
-        for tag in self.important_tags:
-            # Append them in the dictionary so that
-            # Each Key corresponds to the tag and the value is the text
-            # inside the tag
-            for element in soup.find_all(tag):
-                text = element.get_text()
-                # Tokenize text
-                text = re.sub(r'[^a-zA-Z0-9\s]', '', text)
-                text = text.lower()
-                self.words_in_tags[tag] += text + ' '
 
-        print(f"url: {url}")
-        # print(self.words_in_tags)
-        text = soup.get_text()
-        text = re.sub(r'[^a-zA-Z0-9\s]', '', text)
-        # WORK NEEDS TO BE DONE HERE
-        # TOKENIZE AND STEMIZE THE TEXT
-        self.words = text.split()
-        # print(words)
-        # print(f"doc_id: {doc_id}")
-        
-        for position, word in enumerate(self.words):
-            word = word.lower()
-            stemmed_word = self.stemmer.stem(word)
-            self.inverted_index[stemmed_word][doc_id].append(position)
-            # score Formula:
-    
+        # First, parse all text within tags of importance. 
+        for tag_name, importance_score in self.important_tags.items():
+            for element in soup.find_all(tag_name):
+                tag_text = element.get_text(separator=' ', strip=True)
+                if not tag_text:
+                    continue
 
-    def search(self, query):
-        # list of the words in the query list tokenized
-        query_tokens = [self.stemmer.stem(word.lower()) for word in query.split()]
+                tag_text = re.sub(r'[^a-zA-Z0-9\s]', ' ', tag_text)
+                tag_text = re.sub(r'\s+', ' ', tag_text).lower().strip()
 
-        if not query_tokens:
-            return [] # return empty list
-        
-        # fetch doc ids for each word
-        doc_ids = []
-        for t in query_tokens:
-            if t in self.inverted_index:
-                doc_ids.append(set(self.inverted_index[t].keys()))
-            else:
-                return []
-        
-        # boolean and intersection of all doc sets
-        res_docs = set.intersection(*doc_ids)
+                unstemmized_tokens = [token for token in tag_text.split() if len(token) > 2 and token not in STOP_WORDS]
 
-        # list of matching urls
-        return [self.id_to_url[id] for id in res_docs]
+                for pre_token in unstemmized_tokens:
+                    token = self.stemmer.stem(pre_token)
+                    if self.isFilterable(token):
+                        continue
+                    # increment the count and update score if the tag is more important than previously found
+                    self.inverted_index[token][doc_id]["c"] += 1
+                    self.inverted_index[token][doc_id]["s"] = max(
+                            importance_score, 
+                            self.inverted_index[token][doc_id]["s"]
+                        )
 
+        # After text in important tags is processed, remove them from beautifulsoup
+        tags_list = [tag for tag in self.important_tags.keys()]
+        for tag in soup(tags_list):
+            tag.decompose()
 
-    def get_word_importance_factor(self, word):
-        for tag in self.important_tags:
-            if word in self.words_in_tags[tag]:
-                # Calculate the importance factor based on the tag
-                if tag == "h1":
-                    return 4
-                elif tag == "h2":
-                    return 3
-                elif tag == "h3":
-                    return 2
-                elif tag == "strong" or tag == "b":
-                    return 1
-                elif tag == "title":
-                    return 5
-        return 1
+        # Repeat same tokenizing and parsing process for default text
+        default_text = soup.get_text(separator=' ', strip=True)
 
-    def term_frequency_score(self, word, doc_id):
-        score = len(self.inverted_index[word][doc_id]) / len(self.words)
-        
-        return score
-    
-    def inverse_document_frequency_score(self, word):
-        score = len(self.url_to_id) / len(self.inverted_index[word])
-        return score
+        if not default_text:
+            return
+
+        default_text = re.sub(r'[^a-zA-Z0-9\s]', ' ', default_text)
+        default_text = re.sub(r'\s+', ' ', default_text).lower().strip()
+
+        unstemmized_tokens = [token for token in default_text.split() if len(token) > 2 and token not in STOP_WORDS]
+
+        for pre_token in unstemmized_tokens:
+            token = self.stemmer.stem(pre_token)
+            if self.isFilterable(token):
+                continue
+            # increment the count and update score if the tag is more important than previously found
+            self.inverted_index[token][doc_id]["c"] += 1
+            self.inverted_index[token][doc_id]["s"] = max(
+                    1, 
+                    self.inverted_index[token][doc_id]["s"]
+                )
 
     def index_all(self):
-        for root, _, files in os.walk(URLS_PATH_D):
+        for root, _, files in os.walk(URLS_PATH):
             for filename in files:
                 if not filename.endswith('.json'):
                     continue
+
                 filepath = os.path.join(root, filename)
+
                 try:
                     with open(filepath, 'r') as json_file:
                         content = json.load(json_file)
                         url_without_fragment = self.defrag_url(content['url'])
-                        self.index(url_without_fragment, content['content'])
-
-                        # Calculate the score for each word in the inverted index
-                        # and append it to the list of positions
-                        for word in self.inverted_index:
-                            # if the word appears in the document with the given ID
-                            if (self.url_to_id[url_without_fragment] in self.inverted_index[word]):
-                                score = (self.term_frequency_score(word, self.url_to_id[url_without_fragment]) * 
-                                        self.inverse_document_frequency_score(word) + self.get_word_importance_factor(word))
-                                # Append the score to the list of positions
-                                self.inverted_index[word][self.url_to_id[url_without_fragment]].append(score)
-
-                        # Reset dict for every link/doc
-                        self.words_in_tags = defaultdict(str)
+                        self.index(url_without_fragment, content['content'])               
                 
-            
                 except Exception as e:
                     print(f"An error occurred while processing {filepath}: {e}")
-                    
 
-    def get_stats(self):
-        # gather stats
-        num_unique_words = len(self.inverted_index)
-        num_unique_docs = len(self.url_to_id)
+        self.new_partial_index()
 
-        most_common_word = None
-        total_occurences = 0
-        for word in self.inverted_index:
-            # Get the most common word in the inverted index
-            temp_occurences = sum((len(positions)-1) for positions in self.inverted_index[word].values())
-            # print(temp_occurences)
-            if temp_occurences > total_occurences:
-                total_occurences = temp_occurences
-                most_common_word = word
-        
-        with open('stats.txt', 'w') as f:
-            print(f"Number of unique words: {num_unique_words}", file=f)
-            print(f"Number of unique documents: {num_unique_docs}", file=f)
-            print(f"Most common word: '{most_common_word}' with {total_occurences} occurrences in {num_unique_docs} documents", file=f)
-        return num_unique_words, num_unique_docs, most_common_word, total_occurences
+    def generate_logs(self):
+        # Save the URL to ID mapping to a file
+        with open('./stats/url_to_id_dev.json', 'w') as f:
+            json.dump(dict(self.url_to_id), f, indent=4, separators=(',', ': '), ensure_ascii=False)
+        # Save the ID to URL mapping to a file
+        with open('./stats/id_to_url_dev.json', 'w') as f:
+            json.dump(dict(self.id_to_url), f, indent=4, separators=(',', ': '), ensure_ascii=False)
 
 
-    def alphaFirst(self,keys):
-        # Sort the keys in alphabetical order and returns the first one
-        temp = list(keys)
-        temp.sort()
-        return temp[0]
-    
-
-    def writeToFile(self, obj):
-        # Opens file and write it so that each json obj is on a single line
-        with open("combined_index.jsonl", "a") as f:
-            json.dump(obj, f, separators=(',', ':'))
-            f.write('\n')
-
-    def merge_files(self,n):
-        root_path = "./partial_indexes"
-        parsed_files = [] # stores the file iterators
-        keys = {}
-
-        # populate the keys and generators strcuctures
-        for i in range(1, n+1):
-            json_file = open(f"{root_path}/index_{i}.json", 'r')
-            # Stores the generator for each partial index
-            parsed_files.append(ijson.kvitems(json_file, ""))
-
-            # Handle duplicates, Append the values if it already exists to the Keys dict
-            # For example if key "ai" is already in the keys dict make sure to append the new document values to that key
-            # When inserting keep track of the generator index as well so we can generate new values later
-            while True:
-                # Get next
-                temp_key, val = next(parsed_files[i-1])
-                if temp_key not in keys:
-                    keys[temp_key] = [i-1, val]
-                    break
-                else:
-                    keys[temp_key][1] = keys[temp_key][1] | val
-
-
-        # Main merge loop
-        while True:
-
-            # Select the key that comes alphabetically first 
-            selected_key = self.alphaFirst(keys.keys())
-
-            # Make the object to write to the combined index file
-            '''
-                "key": { 
-                        {
-                            doc_id_1: {
-                                "c": count,
-                                "s": score
-                            },
-                            doc_id_1: {
-                                "c": count,
-                                "s": score
-                            }
-                        }
-            '''
-            # By accessing the second value, I am retrieveing the documents object
-            temp = {selected_key: keys[selected_key][1]}
-
-            # Write to the file
-            self.writeToFile(temp)
-
-            # Gets the key's generator index
-            selected_key_index = keys[selected_key][0]
-            try:
-                while True:
-                    # New values from generator
-                    temp_key, temp_val = next(parsed_files[selected_key_index])
-                    if temp_key in keys:
-                        # Merge the new value with existing values
-                        # For example if key "ai" is already in the keys dict make sure to append the new document values to that key
-                        keys[temp_key][1] = keys[temp_key][1] | temp_val
-                    else:
-                        # Remove the old key and add the new one with the new value
-                        keys.pop(selected_key)
-                        keys[temp_key] = [selected_key_index, temp_val]
-                        break
-            except StopIteration:
-                # If a generator has completed remove it from the keys list
-                keys.pop(selected_key)
-                # If all generators have completed except only one, break
-                if len(keys) == 1:
-                    break
-
-        # Get the straggler value left in the keys dict and write it
-        selected_key = list(keys.keys())[0]
-        index = keys[selected_key][0]
-        self.writeToFile({selected_key :keys[selected_key][1]})
-
-        # Clean up loop to add everything else from the reamaining generator into the file
-        while True:
-            try:
-                # Get key and val and add it to the file
-                key, val = next(parsed_files[index])
-                self.writeToFile({key: val})
-            
-            except StopIteration:
-                break
-        
 
 if __name__ == "__main__":
     indexer = Indexer()
-    indexer.merge_files(9)
-
-    # indexer.index_all()
-    
-    # # Save the inverted index to a file
-    # with open('inverted_index.json', 'w') as f:
-    #     json.dump(dict(indexer.inverted_index), f, indent=4, separators=(',', ': '), ensure_ascii=False)
-    # # Save the URL to ID mapping to a file
-    # with open('url_to_id.json', 'w') as f:
-    #     json.dump(dict(indexer.url_to_id), f, indent=4, separators=(',', ': '), ensure_ascii=False)
-    # # Save the ID to URL mapping to a file
-    # with open('id_to_url.json', 'w') as f:
-    #     json.dump(dict(indexer.id_to_url), f, indent=4, separators=(',', ': '), ensure_ascii=False)
-
-    # indexer_stats = indexer.get_stats()
-    # print(f"Number of unique words: {indexer_stats[0]}")
-    # print(f"Number of unique documents: {indexer_stats[1]}")
-    # print(f"Most common word: '{indexer_stats[2]}' with {indexer_stats[-1]} occurrences in {indexer_stats[1]} documents")
-
-    # MILESTONE 2 - RUNNING QUERIES:
-    # for query in QUERIES:
-    #     print(f"\nCurrent query - {query}")
-    #     res = indexer.search(query)
-    #     for i, url in enumerate(res[:5], 1):
-    #         print(f"#{i} url = {url}")
-
-
+    indexer.index_all()
+    indexer.generate_logs()

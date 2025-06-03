@@ -151,14 +151,15 @@ class Indexer:
             if parsed.scheme not in set(["http", "https"]):
                 return False
             return not re.match(
-                r".*\.(css|js|bmp|gif|jpe?g|ico"
+                r".*.(css|js|bmp|gif|jpe?g|ico|svg"
                 + r"|png|tiff?|mid|mp2|mp3|mp4"
                 + r"|wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf"
                 + r"|ps|eps|tex|ppt|pptx|doc|docx|xls|xlsx|names|xml"
-                + r"|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso|ipynb"
-                + r"|epub|dll|cnf|tgz|sha1"
-                + r"|thmx|mso|arff|rtf|jar|csv|txt"
-                + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", parsed.path.lower())
+                + r"|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso"
+                + r"|epub|dll|cnf|tgz|sha1|m|ma|nb|pd|sql"
+                + r"|thmx|mso|arff|rtf|jar|csv|shtml|htm"
+                + r"|rm|smil|wmv|swf|wma|zip|rar|gz|war|img|mpg|apk"
+                + r"|c|py|ipynb|h|cp?p|pov|lif|ppsx|pps|patch)$", parsed.path.lower())
         except TypeError:
             print ("TypeError for ", parsed)
             raise

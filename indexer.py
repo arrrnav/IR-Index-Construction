@@ -124,8 +124,10 @@ class Indexer:
         return url_without_fragment
     
     def is_valid_token(self, token) -> bool:
+        if token in STOP_WORDS:
+            return False
         if any(token.startswith(prefix) for prefix in TOKEN_FILTERS):
-            return True
+            return False
         try:
             int(token)
             return (len(token) == 4)
@@ -202,7 +204,7 @@ class Indexer:
                 tag_text = re.sub(r'[^a-zA-Z0-9\s]', ' ', tag_text)
                 tag_text = re.sub(r'\s+', ' ', tag_text).lower().strip()
 
-                unstemmized_tokens = [token for token in tag_text.split() if len(token) > 2 and token not in STOP_WORDS]
+                unstemmized_tokens = [token for token in tag_text.split() if len(token) > 2]
 
                 for pre_token in unstemmized_tokens:
                     token = self.stemmer.stem(pre_token)
@@ -229,7 +231,7 @@ class Indexer:
         default_text = re.sub(r'[^a-zA-Z0-9\s]', ' ', default_text)
         default_text = re.sub(r'\s+', ' ', default_text).lower().strip()
 
-        unstemmized_tokens = [token for token in default_text.split() if len(token) > 2 and token not in STOP_WORDS]
+        unstemmized_tokens = [token for token in default_text.split() if len(token) > 2]
 
         for pre_token in unstemmized_tokens:
             token = self.stemmer.stem(pre_token)

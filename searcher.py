@@ -283,32 +283,36 @@ T_TO_Z = set("tuvwxyz")
 class Searcher:
     def __init__(self):
         self.positional_indexes = {}
+        self.pos_indexes_path = "./positional_indexes"
+        self.split_path = "./alphabetized_indexes"
+        self.id_to_url = {}
+        self.stats_path = "./stats"
         self.stemmer = PorterStemmer()
         self.document_freqs = {}
-        self.id_to_url = {}
         self._load_pos_indexes()
         self._calc_doc_stats()
+        
         
 
     def _load_pos_indexes(self):
         for i in range(1, 7):
             try:
                 # Fix: Use the correct path that matches merger.py output
-                with open(f"./positional_indexes/index_{i}.json", "r") as f:
+                with open(f"{self.pos_indexes_path}/index_{i}.json", "r") as f:
                     self.positional_indexes[i] = json.load(f)
                 print(f"Loaded positional index {i} with {len(self.positional_indexes[i])} tokens")
             except FileNotFoundError:
                 print(f"positional index #{i} not found")
                 self.positional_indexes[i] = {}
         
-        with open ("id_to_url_dev.json", "r") as f:
+        with open (f"{self.stats_path}/id_to_url.json", "r") as f:
             self.id_to_url = json.loads(f.read())
 
     
     def _calc_doc_stats(self):
         all_docs = set() 
-        for p_i in range(1, 7):
-            with open(f"./partial_indexes/index_{p_i}.jsonl", "r") as f:
+        for i in range(1, 7):
+            with open(f"{self.split_path}/index_{i}.jsonl", "r") as f:
                 for line in f:
                     posting = json.loads(line)
                     token = list(posting.keys())[0]
@@ -338,7 +342,7 @@ class Searcher:
         try:
 
             pos = self.positional_indexes[partition][token]
-            with open(f"./partial_indexes/index_{partition}.jsonl", "r") as f:
+            with open(f"{self.split_path}/index_{partition}.jsonl", "r") as f:
                 # print(partition)
                 f.seek(pos)
                 line = f.readline()  # Fix: readline() not readLine()

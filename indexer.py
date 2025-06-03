@@ -226,10 +226,10 @@ class Indexer:
 
     def generate_logs(self):
         # Save the URL to ID mapping to a file
-        with open('./stats/url_to_id_dev.json', 'w') as f:
+        with open('./stats/url_to_id.json', 'w') as f:
             json.dump(dict(self.url_to_id), f, indent=4, separators=(',', ': '), ensure_ascii=False)
         # Save the ID to URL mapping to a file
-        with open('./stats/id_to_url_dev.json', 'w') as f:
+        with open('./stats/id_to_url.json', 'w') as f:
             json.dump(dict(self.id_to_url), f, indent=4, separators=(',', ': '), ensure_ascii=False)
 
 

@@ -159,7 +159,7 @@ class Indexer:
                 + r"|epub|dll|cnf|tgz|sha1|m|ma|nb|pd|sql"
                 + r"|thmx|mso|arff|rtf|jar|csv|shtml|htm"
                 + r"|rm|smil|wmv|swf|wma|zip|rar|gz|war|img|mpg|apk"
-                + r"|c|py|ipynb|h|cp?p|pov|lif|ppsx|pps|patch)$", parsed.path.lower())
+                + r"|c|cc|py|ipynb|h|cp?p|pov|lif|ppsx|pps|patch)$", parsed.path.lower())
         except TypeError:
             print ("TypeError for ", parsed)
             raise

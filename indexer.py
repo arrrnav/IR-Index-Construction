@@ -124,8 +124,8 @@ class Indexer:
         return url_without_fragment
     
     def is_valid_token(self, token) -> bool:
-        # if any(token.startswith(prefix) for prefix in TOKEN_FILTERS):
-        #     return True
+        if any(token.startswith(prefix) for prefix in TOKEN_FILTERS):
+            return True
         try:
             int(token)
             return (len(token) == 4)

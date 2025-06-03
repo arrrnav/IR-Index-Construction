@@ -435,10 +435,10 @@ class Searcher:
             idf = math.log(self.total_docs / df) 
             for id in docs:
                 if id in postings:
-                    tf = postings[id] if isinstance(postings[id], (int, float)) else 1
+                    tf = postings[id]["c"]
                     tf_idf = 0 
                     if tf > 0:
-                        tf_idf = (1+math.log(tf)) * idf
+                        tf_idf = (1+math.log(tf)) * idf * postings[id]["s"]
                     scores[id] += tf_idf
         return dict(scores)
 

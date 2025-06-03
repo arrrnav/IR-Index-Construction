@@ -205,7 +205,7 @@ class Indexer:
 
                 for pre_token in unstemmized_tokens:
                     token = self.stemmer.stem(pre_token)
-                    if self.isFilterable(token):
+                    if not self.is_valid_token(token):
                         continue
                     # increment the count and update score if the tag is more important than previously found
                     self.inverted_index[token][doc_id]["c"] += 1
@@ -232,7 +232,7 @@ class Indexer:
 
         for pre_token in unstemmized_tokens:
             token = self.stemmer.stem(pre_token)
-            if self.isFilterable(token):
+            if not self.is_valid_token(token):
                 continue
             # increment the count and update score if the tag is more important than previously found
             self.inverted_index[token][doc_id]["c"] += 1

@@ -472,44 +472,48 @@ class Searcher:
             print("shouldnt happen")
             return []
 
-        ids_and_scores = defaultdict(int)
+        ids_and_scores = defaultdict(int)        
 
-        postings = {}
-        docs = {}
+        #  COSINE SIM CODE
         # docs = set()
-
         # for token in query_tokens:
         #     posting = self._get_postings(token)
         #     if posting:
         #         docs.update(posting.keys())
+        ###################
             
-
+        # REGULAR TFIDF CODE
+        docs = {}
+        postings = {}
         for token in query_tokens:
             posting = self._get_postings(token)
             if not posting:
                 continue
-
             postings[token] = posting
-
-            
+        
             if not docs:
                 docs = set(postings[token].keys())
             else:
                 docs = docs.union(set(postings[token].keys()))
-        
+        ###################
+
+
         if not docs:
             return []
         # # print("docs: ", docs)
+
+        # REGULAR TFIDF CODE
         ids_and_scores = self._calc_tf_idf(query_tokens, docs)
-
-        print("Scores:", ids_and_scores)
-        
         ids_and_scores = sorted(ids_and_scores.items(), key=lambda x: x[1], reverse=True)
-
+        # print("Scores:", ids_and_scores)
+        ###################
         
+        #  COSINE SIM CODE
         # ids_and_scores = self._get_ids_and_scores(query_tokens, docs)
         # ids_and_scores = sorted(ids_and_scores.items(), key=lambda x: x[1], reverse=True)
         # print(ids_and_scores)
+        ###################
+
         return [self.id_to_url[doc_id] for doc_id, _ in ids_and_scores[:5]]
 
 

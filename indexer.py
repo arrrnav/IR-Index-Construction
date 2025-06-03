@@ -62,6 +62,7 @@ STOP_WORDS = {
 
 TOKEN_FILTERS = ['ensm', 'ensg']
 
+
 class Indexer:
     def __init__(self):
         self.inverted_index = defaultdict(lambda: defaultdict(lambda: {"c": 0, "s": 0}))
@@ -69,12 +70,12 @@ class Indexer:
         self.id_to_url = defaultdict(str)
         self.next_available_id = 0
         self.important_tags = {
-            "title": 8,
-            "h1": 10,
-            "h2": 6,
-            "h3": 4,
-            "strong": 2,
-            "b": 2
+            "title": 20,
+            "h1": 18,
+            "h2": 16,
+            "h3": 14,
+            "strong": 12,
+            "b": 12
             # default: 1
         }
         self.stemmer = PorterStemmer()
@@ -122,18 +123,52 @@ class Indexer:
         # url_without_fragment = parsed_url.scheme + "://" + parsed_url.netloc + parsed_url.path
         return url_without_fragment
     
-    def isFilterable(self, token) -> bool:
-        if any(token.startswith(prefix) for prefix in TOKEN_FILTERS):
-            return True
+    def is_valid_token(self, token) -> bool:
+        # if any(token.startswith(prefix) for prefix in TOKEN_FILTERS):
+        #     return True
         try:
             int(token)
-            return (len(token) != 4)
+            return (len(token) == 4)
         except ValueError:
+            # try to clean any negatives and scientific notation
+            cleaned_token = re.sub(r'[.\-eE/]', '', token)
+            try:
+                int(cleaned_token)
+                return False
+            except ValueError:
+                return True
+        
+    def is_valid_url(self, url):
+        # Decide whether to crawl this url or not. 
+        # If you decide to crawl it, return True; otherwise return False.
+        # There are already some conditions that return False.
+        split_url = url.split('=')
+        if split_url[-1] == "txt":
             return False
+
+        try:
+            parsed = urlparse(url)
+            if parsed.scheme not in set(["http", "https"]):
+                return False
+            return not re.match(
+                r".*\.(css|js|bmp|gif|jpe?g|ico"
+                + r"|png|tiff?|mid|mp2|mp3|mp4"
+                + r"|wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf"
+                + r"|ps|eps|tex|ppt|pptx|doc|docx|xls|xlsx|names|xml"
+                + r"|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso|ipynb"
+                + r"|epub|dll|cnf|tgz|sha1"
+                + r"|thmx|mso|arff|rtf|jar|csv|txt"
+                + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", parsed.path.lower())
+        except TypeError:
+            print ("TypeError for ", parsed)
+            raise
     
     def index(self, url, content):
         # Check if the URL is already indexed (for use in multiple URLS with same path but different fragments)
         if url in self.url_to_id:
+            return
+        
+        if not self.is_valid_url(url):
             return
 
         # for debugging
@@ -202,7 +237,7 @@ class Indexer:
             # increment the count and update score if the tag is more important than previously found
             self.inverted_index[token][doc_id]["c"] += 1
             self.inverted_index[token][doc_id]["s"] = max(
-                    1, 
+                    10, 
                     self.inverted_index[token][doc_id]["s"]
                 )
 

@@ -43,23 +43,6 @@ EXAMPLE_INDEX ='''
 URLS_PATH = './developer/DEV'
 # URLS_PATH = './analyst/ANALYST'
 
-STOP_WORDS = {
-    "a", "about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are", "aren't",
-    "as", "at", "be", "because", "been", "before", "being", "below", "between", "both", "but", "by", "can't",
-    "cannot", "could", "couldn't", "did", "didn't", "do", "does", "doesn't", "doing", "don't", "down", "during",
-    "each", "few", "for", "from", "further", "had", "hadn't", "has", "hasn't", "have", "haven't", "having", "he",
-    "he'd", "he'll", "he's", "her", "here", "here's", "hers", "herself", "him", "himself", "his", "how", "how's",
-    "i", "i'd", "i'll", "i'm", "i've", "if", "in", "into", "is", "isn't", "it", "it's", "its", "itself", "let's",
-    "me", "more", "most", "mustn't", "my", "myself", "no", "nor", "not", "of", "off", "on", "once", "only", "or",
-    "other", "ought", "our", "ours", "ourselves", "out", "over", "own", "same", "shan't", "she", "she'd", "she'll",
-    "she's", "should", "shouldn't", "so", "some", "such", "than", "that", "that's", "the", "their", "theirs", "them",
-    "themselves", "then", "there", "there's", "these", "they", "they'd", "they'll", "they're", "they've", "this",
-    "those", "through", "to", "too", "under", "until", "up", "very", "was", "wasn't", "we", "we'd", "we'll", "we're",
-    "we've", "were", "weren't", "what", "what's", "when", "when's", "where", "where's", "which", "while", "who",
-    "who's", "whom", "why", "why's", "with", "won't", "would", "wouldn't", "you", "you'd", "you'll", "you're",
-    "you've", "your", "yours", "yourself", "yourselves"
-}
-
 TOKEN_FILTERS = ['ensm', 'ensg']
 
 
@@ -124,8 +107,8 @@ class Indexer:
         return url_without_fragment
     
     def is_valid_token(self, token) -> bool:
-        if token in STOP_WORDS:
-            return False
+        # if token in STOP_WORDS:
+        #     return False
         if any(token.startswith(prefix) for prefix in TOKEN_FILTERS):
             return False
         try:
@@ -204,7 +187,7 @@ class Indexer:
                 tag_text = re.sub(r'[^a-zA-Z0-9\s]', ' ', tag_text)
                 tag_text = re.sub(r'\s+', ' ', tag_text).lower().strip()
 
-                unstemmized_tokens = [token for token in tag_text.split() if len(token) > 2 and token not in STOP_WORDS]
+                unstemmized_tokens = [token for token in tag_text.split() if len(token) > 2]
 
                 for pre_token in unstemmized_tokens:
                     token = self.stemmer.stem(pre_token)
@@ -231,7 +214,7 @@ class Indexer:
         default_text = re.sub(r'[^a-zA-Z0-9\s]', ' ', default_text)
         default_text = re.sub(r'\s+', ' ', default_text).lower().strip()
 
-        unstemmized_tokens = [token for token in default_text.split() if len(token) > 2 and token not in STOP_WORDS]
+        unstemmized_tokens = [token for token in default_text.split() if len(token) > 2]
 
         for pre_token in unstemmized_tokens:
             token = self.stemmer.stem(pre_token)

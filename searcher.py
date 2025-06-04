@@ -9,9 +9,9 @@ import time
 A_TO_D = set("abcd")
 E_TO_H = set("efgh")
 I_TO_M = set("ijklm")
-N_TO_P = set("nop")
-Q_TO_S = set("qrs")
-T_TO_Z = set("tuvwxyz")
+N_TO_R = set("nopqr")
+S_TO_T = set("st")
+U_TO_Z = set("uvwxyz")
 
 class Searcher:
     def __init__(self):
@@ -63,9 +63,8 @@ class Searcher:
         if first in A_TO_D: return 1 
         if first in E_TO_H: return 2
         if first in I_TO_M: return 3 
-        if first in N_TO_P: return 4
-        if first in Q_TO_S: return 5
-        if first in T_TO_Z: return 6
+        if first in N_TO_R: return 4
+        if first in S_TO_T: return 5
         return 6  # fallback for any other characters
     
     def _get_postings(self, token):

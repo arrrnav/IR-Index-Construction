@@ -113,7 +113,7 @@ class Indexer:
             return False
         try:
             int(token)
-            return (len(token) == 4)
+            return (len(token) <= 4)
         except ValueError:
             # try to clean any negatives and scientific notation
             cleaned_token = re.sub(r'[.\-eE/]', '', token)
@@ -187,7 +187,7 @@ class Indexer:
                 tag_text = re.sub(r'[^a-zA-Z0-9\s]', ' ', tag_text)
                 tag_text = re.sub(r'\s+', ' ', tag_text).lower().strip()
 
-                unstemmized_tokens = [token for token in tag_text.split() if len(token) > 2]
+                unstemmized_tokens = [token for token in tag_text.split()]
 
                 for pre_token in unstemmized_tokens:
                     token = self.stemmer.stem(pre_token)
@@ -214,7 +214,7 @@ class Indexer:
         default_text = re.sub(r'[^a-zA-Z0-9\s]', ' ', default_text)
         default_text = re.sub(r'\s+', ' ', default_text).lower().strip()
 
-        unstemmized_tokens = [token for token in default_text.split() if len(token) > 2]
+        unstemmized_tokens = [token for token in default_text.split()]
 
         for pre_token in unstemmized_tokens:
             token = self.stemmer.stem(pre_token)

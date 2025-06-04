@@ -4,9 +4,9 @@ import json, ijson
 A_TO_D = set("abcd")
 E_TO_H = set("efgh")
 I_TO_M = set("ijklm")
-N_TO_P = set("nop")
-Q_TO_S = set("qrs")
-T_TO_Z = set("tuvwxyz")
+N_TO_R = set("nopqr")
+S_TO_T = set("st")
+U_TO_Z = set("uvwxyz")
 
 class Merger:
     def __init__(self):
@@ -156,14 +156,14 @@ class Merger:
                         pos_index_3[token] = pos3
                     pos3 += line_length + 2
 
-                elif token[0].lower() in N_TO_P:
+                elif token[0].lower() in N_TO_R:
                     with open(f"{self.split_path}/index_4.jsonl", "a") as f4:
                         json.dump(posting, f4, separators=(',', ':'))
                         f4.write('\n')
                         pos_index_4[token] = pos4
                     pos4 += line_length + 2
 
-                elif token[0].lower() in Q_TO_S:
+                elif token[0].lower() in S_TO_T:
                     with open(f"{self.split_path}/index_5.jsonl", "a") as f5:
                         json.dump(posting, f5, separators=(',', ':'))
                         f5.write('\n')

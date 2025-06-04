@@ -76,7 +76,7 @@ class Indexer:
             "h3": 14,
             "strong": 12,
             "b": 12
-            # default: 1
+            # default: 10
         }
         self.stemmer = PorterStemmer()
         self.index_num = 1
@@ -204,7 +204,7 @@ class Indexer:
                 tag_text = re.sub(r'[^a-zA-Z0-9\s]', ' ', tag_text)
                 tag_text = re.sub(r'\s+', ' ', tag_text).lower().strip()
 
-                unstemmized_tokens = [token for token in tag_text.split() if len(token) > 2]
+                unstemmized_tokens = [token for token in tag_text.split() if len(token) > 2 and token not in STOP_WORDS]
 
                 for pre_token in unstemmized_tokens:
                     token = self.stemmer.stem(pre_token)
@@ -231,7 +231,7 @@ class Indexer:
         default_text = re.sub(r'[^a-zA-Z0-9\s]', ' ', default_text)
         default_text = re.sub(r'\s+', ' ', default_text).lower().strip()
 
-        unstemmized_tokens = [token for token in default_text.split() if len(token) > 2]
+        unstemmized_tokens = [token for token in default_text.split() if len(token) > 2 and token not in STOP_WORDS]
 
         for pre_token in unstemmized_tokens:
             token = self.stemmer.stem(pre_token)

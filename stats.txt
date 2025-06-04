@@ -1,3 +1,0 @@
-Number of unique tokens: 2223522
-Number of unique urls: 53792
-Most common token: 'the' with 1116667 occurrences in 53792 urls

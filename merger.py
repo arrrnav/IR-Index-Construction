@@ -226,7 +226,7 @@ class Merger:
                 line = f3.readline()
                 return json.loads(line)
 
-        elif token[0].lower() in N_TO_P:
+        elif token[0].lower() in N_TO_R:
             pos = None
             with open(f"{self.pos_indexes_path}/index_4.json", "r") as f4:
                 data = json.load(f4)
@@ -240,7 +240,7 @@ class Merger:
                 line = f4.readline()
                 return json.loads(line)
 
-        elif token[0].lower() in Q_TO_S:
+        elif token[0].lower() in S_TO_T:
             pos = None
             with open(f"{self.pos_indexes_path}/index_5.json", "r") as f5:
                 data = json.load(f5)
@@ -275,9 +275,9 @@ if __name__ == "__main__":
     # merger.merge_files(9)
     merger.splitAlpha()
     
-    while True:
-        token = input("Enter a token to search for (or 'exit' to quit): ").strip()
-        if token.lower() == 'exit':
-            break
-        result = merger.posting_search(token)
-        print(result)
+    # while True:
+    #     token = input("Enter a token to search for (or 'exit' to quit): ").strip()
+    #     if token.lower() == 'exit':
+    #         break
+    #     result = merger.posting_search(token)
+    #     print(result)

@@ -6,14 +6,12 @@ from typing import List, Dict, Set, Tuple
 import math 
 import time
 
-
 A_TO_D = set("abcd")
 E_TO_H = set("efgh")
 I_TO_M = set("ijklm")
 N_TO_R = set("nopqr")
 S_TO_T = set("st")
 U_TO_Z = set("uvwxyz")
-
 
 class Searcher:
     def __init__(self):
@@ -84,6 +82,63 @@ class Searcher:
                 return posting[token]
         except:
             return None
+        
+
+    def _calc_query_vector(self, query_tokens):
+        query_vector = {}
+
+        token_counts = {}
+        for token in query_tokens:
+            if token in token_counts:
+                token_counts[token] += 1
+            else:
+                token_counts[token] = 1
+        
+        for token in token_counts:
+            count = token_counts[token]
+
+            tf = 1 + math.log(count)
+
+            df = self.document_freqs.get(token, 1)
+            
+            if df > 0:
+                idf = math.log(self.total_docs / df)
+                query_vector[token] = tf * idf
+        
+        return query_vector
+    
+    def _calc_document_vector(self, doc_id, query_tokens):
+        doc_vector = {}
+
+
+        for token in query_tokens:
+            postings = self._get_postings(token)
+            if (doc_id in postings):
+                tf = postings[doc_id]["c"]
+
+                if tf > 0:
+                    tf = 1 + math.log(tf)
+                    df = self.document_freqs.get(token, 1)
+                    idf = math.log(self.total_docs / df)
+
+                    doc_vector[token] = tf*idf
+
+        return doc_vector
+    
+    def _cosine_sim(self, query_vector, doc_vector):
+        
+        # get dot product
+        dot_product = 0
+        for token in query_vector:
+            if token in doc_vector:
+                dot_product += query_vector[token] * doc_vector[token]
+        
+        # Calculate magnitudes
+        query_magnitude = math.sqrt(sum(query_vector[score]**2 for score in query_vector))
+        doc_magnitude = math.sqrt(sum(doc_vector[score]**2 for score in doc_vector))
+
+        # Return the cosin sim
+        return dot_product / (query_magnitude * doc_magnitude)
 
 
     def _get_ids_and_scores(self, query_tokens, docs):
@@ -105,11 +160,8 @@ class Searcher:
 
     def _calc_tf_idf(self, q_tokens, docs):
         scores = defaultdict(float)
-        # visited = set()
         for t in q_tokens:
             postings = self._get_postings(t)
-            if not postings:
-                continue
             df = self.document_freqs.get(t, 1)
             idf = math.log(self.total_docs / df) 
             for id in docs:
@@ -117,61 +169,83 @@ class Searcher:
                     tf = postings[id]["c"]
                     tf_idf = 0 
                     if tf > 0:
-                        tf_idf = (1+math.log(tf)) * idf * postings[id]["s"]
-                    if id in scores:
-                        scores[id] = (scores[id] + tf_idf) * 4
-                    else:
-                        scores[id] += tf_idf
-
+                        tf_idf = (1+math.log(tf)) * idf * postings[id]["s"] if postings[id]["s"] < 20 else (1+math.log(tf)) * idf * 20
+                    scores[id] += tf_idf
         return dict(scores)
-    
-    def _fetch_from_query(self, tokens: list[str], is_bool: bool) -> list[str]:
-        ids_and_scores = defaultdict(int)
-
-        docs = set()
-        
-        for token in tokens:
-            posting = self._get_postings(token)
-            if not posting:
-                if is_bool:
-                    return []
-                continue
-
-            if not docs:
-                docs.update(posting.keys())
-            else:
-                if is_bool:
-                    docs.intersection_update(posting.keys())
-                else:
-                    docs.update(posting.keys())
-
-        if not docs:
-            return []
-        
-        print(f"debug: {tokens}")
-
-        ids_and_scores = self._calc_tf_idf(tokens, docs)
-        ids_and_scores = sorted(ids_and_scores.items(), key=lambda x: x[1], reverse=True)
-
-        return [self.id_to_url[doc_id] for doc_id, _ in ids_and_scores[:5]]
 
     def search(self, query):
         """Enhanced search method that handles both regular and boolean queries"""
+        # Check if query contains boolean operators
+        # if self.has_boolean_operators(query):
+        #     # Handle boolean query
+        #     tokens = self.parse_boolean_query(query)
+        #     print(f"Boolean query detected: {tokens}")
+            
+        #     doc_scores = self.evaluate_boolean_expression(tokens, index_f)
+            
+        #     if not doc_scores:
+        #         return []
+            
+        #     # Sort by score and return top results
+        #     sorted_results = sorted(doc_scores.items(), key=lambda x: x[1]['s'], reverse=True)
+        #     return [self.id_to_url[doc_id] for doc_id, _ in sorted_results[:5]]
+        
+        # else:
+        # Original search logic for regular queries
+        # index_f.seek(0)
 
         query_text = re.sub(r'[^a-zA-Z0-9\s]', '', query)
-        split_text = query_text.split()
-
-        query_tokens = [self.stemmer.stem(word.lower()) for word in split_text]
-
+        query_tokens = [self.stemmer.stem(word.lower()) for word in query_text.split()]
+        # query_tokens = sorted(set(query_tokens))
         print(query_tokens)
 
         if not query_tokens:
-            print("No substantial query found")
+            print("shouldnt happen")
             return []
 
-        if "AND" in split_text:
-            return self._fetch_from_query(query_tokens, is_bool=True)
-        return self._fetch_from_query(query_tokens, is_bool=False)
+        ids_and_scores = defaultdict(int)        
+
+        #  COSINE SIM CODE
+        # docs = set()
+        # for token in query_tokens:
+        #     posting = self._get_postings(token)
+        #     if posting:
+        #         docs.update(posting.keys())
+        ###################
+            
+        # REGULAR TFIDF CODE
+        docs = {}
+        postings = {}
+        for token in query_tokens:
+            posting = self._get_postings(token)
+            if not posting:
+                continue
+            postings[token] = posting
+        
+            if not docs:
+                docs = set(postings[token].keys())
+            else:
+                docs = docs.union(set(postings[token].keys()))
+        ###################
+
+
+        if not docs:
+            return []
+        # # print("docs: ", docs)
+
+        # REGULAR TFIDF CODE
+        ids_and_scores = self._calc_tf_idf(query_tokens, docs)
+        ids_and_scores = sorted(ids_and_scores.items(), key=lambda x: x[1], reverse=True)
+        # print("Scores:", ids_and_scores)
+        ###################
+        
+        #  COSINE SIM CODE
+        # ids_and_scores = self._get_ids_and_scores(query_tokens, docs)
+        # ids_and_scores = sorted(ids_and_scores.items(), key=lambda x: x[1], reverse=True)
+        # print(ids_and_scores)
+        ###################
+
+        return [self.id_to_url[doc_id] for doc_id, _ in ids_and_scores[:5]]
 
 
 if __name__ == "__main__":
@@ -187,8 +261,6 @@ if __name__ == "__main__":
         end_time = time.time()
         print(f"Results (retrieved in {(end_time - start_time)*1000} milliseconds):")
         print("Results:")
-        if not results:
-            print("No search results found")
         for rank, result in enumerate(results):
             print(f'#{rank+1}: {result}')
         print()
